@@ -116,6 +116,8 @@ namespace tremotesf {
 
     bool ServerSettingsData::hasProxySettings() const { return (rpcVersion >= 20); }
 
+    bool ServerSettingsData::canMergeTorrents() const { return (rpcVersion >= 20); }
+
     ServerSettings::ServerSettings(Rpc* rpc, QObject* parent) : QObject(parent), mRpc(rpc), mSaveOnSet(true) {}
 
     void ServerSettings::setDownloadDirectory(const QString& directory) {

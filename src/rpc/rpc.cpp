@@ -479,6 +479,13 @@ namespace tremotesf {
         mBackgroundRequestsCoroutineScope.launch(postRequest("torrent-reannounce"_L1, {{u"ids"_s, toJsonArray(ids)}}));
     }
 
+    void Rpc::mergeTorrents(std::span<const int> sourceIds, int targetId, bool removeSources) {
+        mBackgroundRequestsCoroutineScope.launch(postRequest(
+            "torrent_merge"_L1,
+            {{u"ids"_s, toJsonArray(sourceIds)}, {u"target"_s, targetId}, {u"remove_sources"_s, removeSources}}
+        ));
+    }
+
     void Rpc::setSessionProperty(QString property, QJsonValue value) {
         setSessionProperties({{property, std::move(value)}});
     }

@@ -166,6 +166,7 @@ namespace tremotesf {
         void moveTorrentsToBottom(std::span<const int> ids);
 
         void reannounceTorrents(std::span<const int> ids);
+        void mergeTorrents(std::span<const int> sourceIds, int targetId, bool removeSources);
 
         void setSessionProperty(QString property, QJsonValue value);
         void setSessionProperties(QJsonObject properties);
