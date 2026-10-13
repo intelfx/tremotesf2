@@ -20,6 +20,9 @@ namespace tremotesf {
     public:
         explicit MainWindowStatusBar(const Rpc* rpc, QWidget* parent = nullptr);
 
+        // Empty name hides the merge source
+        void setMergeSource(const QString& name);
+
     private:
         void updateLayout();
         void updateServerLabel();
@@ -39,6 +42,8 @@ namespace tremotesf {
         QLabel* mUploadSpeedLabel{};
         StatusBarSeparator* mFourthSeparator{};
         QLabel* mFreeSpaceLabel{};
+        StatusBarSeparator* mMergeSourceSeparator{};
+        QLabel* mMergeSourceLabel{};
 
     signals:
         void showConnectionSettingsDialog();

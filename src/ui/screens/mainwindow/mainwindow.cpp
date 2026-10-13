@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <functional>
+#include <optional>
 #include <ranges>
 #include <unordered_map>
 
@@ -248,12 +249,12 @@ namespace tremotesf {
 
             mWindow->setCentralWidget(&mHorizontalSplitter);
 
-            auto* const statusBar = new MainWindowStatusBar(mViewModel.rpc());
-            mWindow->setStatusBar(statusBar);
+            mStatusBar = new MainWindowStatusBar(mViewModel.rpc());
+            mWindow->setStatusBar(mStatusBar);
             if (!Settings::instance()->get_statusBarVisible()) {
-                statusBar->hide();
+                mStatusBar->hide();
             }
-            QObject::connect(statusBar, &MainWindowStatusBar::showConnectionSettingsDialog, this, [this] {
+            QObject::connect(mStatusBar, &MainWindowStatusBar::showConnectionSettingsDialog, this, [this] {
                 showSingleInstanceDialog<ConnectionSettingsDialog>([this] {
                     return new ConnectionSettingsDialog(mWindow);
                 });
@@ -263,6 +264,12 @@ namespace tremotesf {
 
             updateTorrentActions();
             QObject::connect(mViewModel.rpc(), &Rpc::torrentsUpdated, this, &MainWindow::Impl::updateTorrentActions);
+            // Torrent ids are only meaningful within one connection
+            QObject::connect(mViewModel.rpc(), &Rpc::connectedChanged, this, [this] {
+                if (!mViewModel.rpc()->isConnected()) {
+                    setMergeSource(std::nullopt);
+                }
+            });
             QObject::connect(
                 mTorrentsView.selectionModel(),
                 &QItemSelectionModel::selectionChanged,
@@ -456,6 +463,12 @@ namespace tremotesf {
 
         QMenu* mMergeMenu{};
         QAction* mMergeStatisticsAction{};
+        QAction* mMarkMergeSourceAction{};
+        QAction* mMergeIntoAction{};
+        QAction* mClearMergeSourceAction{};
+        std::optional<int> mMergeSourceId{};
+
+        MainWindowStatusBar* mStatusBar{};
 
         std::vector<QAction*> mConnectionDependentActions;
 
@@ -679,6 +692,38 @@ namespace tremotesf {
                     }
                     showMergeTorrentsDialog(older, newer);
                 }
+            });
+
+            mMergeMenu->addSeparator();
+
+            mMarkMergeSourceAction = mMergeMenu->addAction(
+                //: Torrent's context menu item
+                qApp->translate("tremotesf", "Mark as Merge &Source")
+            );
+            QObject::connect(mMarkMergeSourceAction, &QAction::triggered, this, [this] {
+                const auto indexes = mTorrentsProxyModel.sourceIndexes(mTorrentsView.selectionModel()->selectedRows());
+                if (indexes.size() == 1) {
+                    setMergeSource(mTorrentsModel.torrentAtIndex(indexes.first())->data().id);
+                }
+            });
+
+            mMergeIntoAction = mMergeMenu->addAction(QString());
+            QObject::connect(mMergeIntoAction, &QAction::triggered, this, [this] {
+                const auto indexes = mTorrentsProxyModel.sourceIndexes(mTorrentsView.selectionModel()->selectedRows());
+                const auto* const source = mMergeSourceId ? mViewModel.rpc()->torrentById(*mMergeSourceId) : nullptr;
+                if (source && indexes.size() == 1) {
+                    auto* const dialog =
+                        showMergeTorrentsDialog(source, mTorrentsModel.torrentAtIndex(indexes.first()));
+                    QObject::connect(dialog, &QDialog::accepted, this, [this] { setMergeSource(std::nullopt); });
+                }
+            });
+
+            mClearMergeSourceAction = mMergeMenu->addAction(
+                //: Torrent's context menu item
+                qApp->translate("tremotesf", "&Clear Merge Source")
+            );
+            QObject::connect(mClearMergeSourceAction, &QAction::triggered, this, [this] {
+                setMergeSource(std::nullopt);
             });
 
             mTorrentMenu->addSeparator();
@@ -943,7 +988,35 @@ namespace tremotesf {
             );
         }
 
+        void setMergeSource(std::optional<int> id) {
+            mMergeSourceId = id;
+            updateTorrentActions();
+        }
+
+        void updateMergeSource() {
+            const auto* const source = mMergeSourceId ? mViewModel.rpc()->torrentById(*mMergeSourceId) : nullptr;
+            if (!source) {
+                mMergeSourceId.reset();
+            }
+            auto name = source ? source->data().name : QString();
+            if (name.size() > 48) {
+                name = name.left(47) + u'\u2026';
+            }
+            mStatusBar->setMergeSource(name);
+            if (source) {
+                //: Torrent's context menu item, %1 is the name of the torrent marked as merge source
+                mMergeIntoAction->setText(
+                    qApp->translate("tremotesf", "Merge \"%1\" &Into This...").arg(QString(name).replace(u'&', "&&"_L1))
+                );
+            } else {
+                //: Torrent's context menu item
+                mMergeIntoAction->setText(qApp->translate("tremotesf", "Merge &Into This..."));
+            }
+        }
+
         void updateTorrentActions() {
+            updateMergeSource();
+
             mMergeMenu->menuAction()->setVisible(mViewModel.rpc()->serverSettings()->data().canMergeTorrents());
 
             const auto actions = mTorrentMenu->actions();
@@ -988,6 +1061,14 @@ namespace tremotesf {
             }
 
             mMergeStatisticsAction->setEnabled(selectedRows.size() == 2);
+            mMarkMergeSourceAction->setEnabled(selectedRows.size() == 1);
+            mMergeIntoAction->setEnabled(
+                mMergeSourceId
+                && selectedRows.size() == 1
+                && mTorrentsModel.torrentAtIndex(mTorrentsProxyModel.mapToSource(selectedRows.first()))->data().id
+                       != *mMergeSourceId
+            );
+            mClearMergeSourceAction->setEnabled(mMergeSourceId.has_value());
 
             bool localOrMounted = true;
             if (!mViewModel.rpc()->isLocal()) {
@@ -1049,10 +1130,11 @@ namespace tremotesf {
             }
         }
 
-        void showMergeTorrentsDialog(const Torrent* source, const Torrent* target) {
+        MergeTorrentsDialog* showMergeTorrentsDialog(const Torrent* source, const Torrent* target) {
             auto dialog = new MergeTorrentsDialog(source, target, mViewModel.rpc(), mWindow);
             dialog->setAttribute(Qt::WA_DeleteOnClose);
             dialog->show();
+            return dialog;
         }
 
         void removeSelectedTorrents(bool deleteFiles) {

@@ -79,6 +79,14 @@ namespace tremotesf {
         mFreeSpaceLabel->setContentsMargins(8, 0, 0, 0);
         layout->addWidget(mFreeSpaceLabel);
 
+        mMergeSourceSeparator = new StatusBarSeparator(this);
+        mMergeSourceSeparator->hide();
+        layout->addWidget(mMergeSourceSeparator);
+
+        mMergeSourceLabel = new QLabel(this);
+        mMergeSourceLabel->hide();
+        layout->addWidget(mMergeSourceLabel);
+
         updateLayout();
         QObject::connect(mRpc, &Rpc::connectionStateChanged, this, &MainWindowStatusBar::updateLayout);
         QObject::connect(Servers::instance(), &Servers::hasServersChanged, this, &MainWindowStatusBar::updateLayout);
@@ -106,6 +114,13 @@ namespace tremotesf {
             mFreeSpaceLabel->setText(qApp->translate("tremotesf", "Free space: %1")
                                          .arg(formatutils::formatByteSize(mRpc->serverStats()->freeSpace())));
         });
+    }
+
+    void MainWindowStatusBar::setMergeSource(const QString& name) {
+        //: Status bar label, %1 is the name of the torrent marked as merge source
+        mMergeSourceLabel->setText(qApp->translate("tremotesf", "Merge source: %1").arg(name));
+        mMergeSourceSeparator->setVisible(!name.isEmpty());
+        mMergeSourceLabel->setVisible(!name.isEmpty());
     }
 
     void MainWindowStatusBar::updateLayout() {
