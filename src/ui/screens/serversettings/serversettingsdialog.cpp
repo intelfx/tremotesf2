@@ -16,7 +16,10 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QFontDatabase>
 #include <QLabel>
+#include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QTimeEdit>
 #include <QVBoxLayout>
 
@@ -47,6 +50,17 @@ namespace tremotesf {
             }
             return encryptionModeComboBoxItems.at(static_cast<size_t>(index));
         }
+
+        enum class ProxyMode { Environment, None, Custom };
+
+        constexpr std::array proxyModeComboBoxItems{ProxyMode::Environment, ProxyMode::None, ProxyMode::Custom};
+
+        ProxyMode proxyModeFromComboBoxItem(int index) {
+            if (index == -1) {
+                return {};
+            }
+            return proxyModeComboBoxItems.at(static_cast<size_t>(index));
+        }
     }
 
     ServerSettingsDialog::ServerSettingsDialog(const Rpc* rpc, QWidget* parent) : QDialog(parent), mRpc(rpc) {
@@ -65,6 +79,7 @@ namespace tremotesf {
                 mQueuePageWidget->setEnabled(true);
                 mSpeedPageWidget->setEnabled(true);
                 mNetworkPageWidget->setEnabled(true);
+                mProxiesPageWidget->setEnabled(true);
                 loadSettings();
             } else {
                 mDisconnectedMessageWidget->hide();
@@ -74,6 +89,7 @@ namespace tremotesf {
                 mQueuePageWidget->setEnabled(false);
                 mSpeedPageWidget->setEnabled(false);
                 mNetworkPageWidget->setEnabled(false);
+                mProxiesPageWidget->setEnabled(false);
             }
         };
         QObject::connect(mRpc, &Rpc::connectedChanged, this, onConnectedChanged);
@@ -133,6 +149,21 @@ namespace tremotesf {
         settings->setLpdEnabled(mLpdCheckBox->isChecked());
         settings->setMaximumPeersPerTorrent(mTorrentPeerLimitSpinBox->value());
         settings->setMaximumPeersGlobally(mGlobalPeerLimitSpinBox->value());
+
+        if (settings->data().hasProxySettings()) {
+            switch (proxyModeFromComboBoxItem(mProxyModeComboBox->currentIndex())) {
+            case ProxyMode::Environment:
+                settings->setProxyUrl(std::nullopt);
+                break;
+            case ProxyMode::None:
+                settings->setProxyUrl(QString(""_L1));
+                break;
+            case ProxyMode::Custom:
+                settings->setProxyUrl(mProxyUrlLineEdit->text().trimmed());
+                break;
+            }
+            settings->setProxyRules(mProxyRulesTextEdit->toPlainText());
+        }
 
         settings->save();
         settings->setSaveOnSet(true);
@@ -557,6 +588,91 @@ namespace tremotesf {
         networkPageResizer->addWidgetsFromLayout(connectionGroupBoxLayout);
         networkPageResizer->addWidgetsFromLayout(peerLimitsGroupBoxLayout);
 
+        // Proxies page
+        mProxiesPageWidget = new QWidget(this);
+
+        KPageWidgetItem* proxiesPageItem = pageWidget->addPage(
+            mProxiesPageWidget,
+            //: "Proxies" server settings page
+            qApp->translate("tremotesf", "Proxies")
+        );
+        proxiesPageItem->setIcon(QIcon::fromTheme("preferences-system-network-proxy"_L1));
+
+        auto proxiesPageLayout = new QVBoxLayout(mProxiesPageWidget);
+
+        mProxiesUnsupportedMessageWidget = new KMessageWidget(
+            //: Message that appears when the server doesn't support proxy settings
+            qApp->translate("tremotesf", "This server does not support changing proxy settings"),
+            this
+        );
+        mProxiesUnsupportedMessageWidget->setCloseButtonVisible(false);
+        mProxiesUnsupportedMessageWidget->setMessageType(KMessageWidget::Information);
+        mProxiesUnsupportedMessageWidget->setVisible(false);
+        proxiesPageLayout->addWidget(mProxiesUnsupportedMessageWidget);
+
+        //: Title of settings section related to the proxy that is used by default
+        mDefaultProxyGroupBox = new QGroupBox(qApp->translate("tremotesf", "Default Proxy"), this);
+        auto defaultProxyGroupBoxLayout = new QFormLayout(mDefaultProxyGroupBox);
+        defaultProxyGroupBoxLayout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+
+        mProxyModeComboBox = new QComboBox(this);
+        for (const auto mode : proxyModeComboBoxItems) {
+            switch (mode) {
+            case ProxyMode::Environment:
+                //: Proxy mode: proxy is taken from environment variables of Transmission
+                mProxyModeComboBox->addItem(qApp->translate("tremotesf", "From environment variables"));
+                break;
+            case ProxyMode::None:
+                //: Proxy mode: don't use proxy
+                mProxyModeComboBox->addItem(qApp->translate("tremotesf", "No proxy"));
+                break;
+            case ProxyMode::Custom:
+                //: Proxy mode: use proxy URL entered by user
+                mProxyModeComboBox->addItem(qApp->translate("tremotesf", "Custom"));
+                break;
+            }
+        }
+        defaultProxyGroupBoxLayout->addRow(qApp->translate("tremotesf", "Proxy:"), mProxyModeComboBox);
+
+        mProxyUrlLineEdit = new QLineEdit(this);
+        mProxyUrlLineEdit->setPlaceholderText("socks5h://127.0.0.1:9050"_L1);
+        mProxyUrlLineEdit->setEnabled(false);
+        defaultProxyGroupBoxLayout->addRow(qApp->translate("tremotesf", "Proxy URL:"), mProxyUrlLineEdit);
+        QObject::connect(mProxyModeComboBox, &QComboBox::currentIndexChanged, this, [this](int index) {
+            mProxyUrlLineEdit->setEnabled(proxyModeFromComboBoxItem(index) == ProxyMode::Custom);
+        });
+
+        proxiesPageLayout->addWidget(mDefaultProxyGroupBox);
+
+        //: Title of settings section with proxies chosen by URL
+        mProxyRulesGroupBox = new QGroupBox(qApp->translate("tremotesf", "Proxy Rules"), this);
+        auto proxyRulesGroupBoxLayout = new QVBoxLayout(mProxyRulesGroupBox);
+
+        auto proxyRulesLabel = new QLabel(
+            //: Description of proxy rules syntax. "direct" must not be translated
+            qApp->translate(
+                "tremotesf",
+                "Proxies to use instead of the default one for trackers and other web requests, one rule per line: "
+                "pattern, then proxy URL or \"direct\". "
+                "The pattern is matched against the full URL, with \"*\" and \"?\" as wildcards. "
+                "The first matching rule wins. "
+                "UDP trackers can only be reached through socks5:// and socks5h:// proxies."
+            ),
+            this
+        );
+        proxyRulesLabel->setWordWrap(true);
+        proxyRulesLabel->setTextFormat(Qt::PlainText);
+        proxyRulesGroupBoxLayout->addWidget(proxyRulesLabel);
+
+        mProxyRulesTextEdit = new QPlainTextEdit(this);
+        mProxyRulesTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        mProxyRulesTextEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
+        mProxyRulesTextEdit->setTabChangesFocus(true);
+        mProxyRulesTextEdit->setPlaceholderText("*.onion/*  socks5h://127.0.0.1:9050"_L1);
+        proxyRulesGroupBoxLayout->addWidget(mProxyRulesTextEdit);
+
+        proxiesPageLayout->addWidget(mProxyRulesGroupBox, 1);
+
         layout->addWidget(pageWidget);
 
         auto dialogButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -619,5 +735,17 @@ namespace tremotesf {
         mLpdCheckBox->setChecked(settings->data().lpdEnabled);
         mTorrentPeerLimitSpinBox->setValue(settings->data().maximumPeersPerTorrent);
         mGlobalPeerLimitSpinBox->setValue(settings->data().maximumPeersGlobally);
+
+        const bool hasProxySettings = settings->data().hasProxySettings();
+        mProxiesUnsupportedMessageWidget->setVisible(!hasProxySettings);
+        mDefaultProxyGroupBox->setEnabled(hasProxySettings);
+        mProxyRulesGroupBox->setEnabled(hasProxySettings);
+        const auto& proxyUrl = settings->data().proxyUrl;
+        const auto proxyMode =
+            !proxyUrl ? ProxyMode::Environment : (proxyUrl->isEmpty() ? ProxyMode::None : ProxyMode::Custom);
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        mProxyModeComboBox->setCurrentIndex(indexOfCasted<int>(proxyModeComboBoxItems, proxyMode).value());
+        mProxyUrlLineEdit->setText(proxyUrl.value_or(QString()));
+        mProxyRulesTextEdit->setPlainText(settings->data().proxyRules);
     }
 }

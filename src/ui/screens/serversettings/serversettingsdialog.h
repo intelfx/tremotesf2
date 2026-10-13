@@ -11,6 +11,8 @@ class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QGroupBox;
+class QLineEdit;
+class QPlainTextEdit;
 class QSpinBox;
 class QTimeEdit;
 
@@ -80,6 +82,14 @@ namespace tremotesf {
         QCheckBox* mLpdCheckBox = nullptr;
         QSpinBox* mTorrentPeerLimitSpinBox = nullptr;
         QSpinBox* mGlobalPeerLimitSpinBox = nullptr;
+
+        QWidget* mProxiesPageWidget = nullptr;
+        KMessageWidget* mProxiesUnsupportedMessageWidget = nullptr;
+        QGroupBox* mDefaultProxyGroupBox = nullptr;
+        QComboBox* mProxyModeComboBox = nullptr;
+        QLineEdit* mProxyUrlLineEdit = nullptr;
+        QGroupBox* mProxyRulesGroupBox = nullptr;
+        QPlainTextEdit* mProxyRulesTextEdit = nullptr;
     };
 }
 

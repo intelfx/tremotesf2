@@ -5,7 +5,10 @@
 #ifndef TREMOTESF_RPC_SERVERSETTINGS_H
 #define TREMOTESF_RPC_SERVERSETTINGS_H
 
+#include <optional>
+
 #include <QObject>
+#include <QString>
 #include <QTime>
 
 #include "pathutils.h"
@@ -41,6 +44,7 @@ namespace tremotesf {
         [[nodiscard]] bool hasTableMode() const;
         [[nodiscard]] bool hasTrackerListProperty() const;
         [[nodiscard]] bool hasLabelsProperty() const;
+        [[nodiscard]] bool hasProxySettings() const;
 
         int rpcVersion = 0;
         int minimumRpcVersion = 0;
@@ -89,6 +93,10 @@ namespace tremotesf {
         bool lpdEnabled = false;
         int maximumPeersPerTorrent = 0;
         int maximumPeersGlobally = 0;
+
+        // nullopt means that Transmission takes the proxy from its environment variables
+        std::optional<QString> proxyUrl;
+        QString proxyRules;
     };
 
     class ServerSettings final : public QObject {
@@ -138,6 +146,9 @@ namespace tremotesf {
         void setLpdEnabled(bool enabled);
         void setMaximumPeersPerTorrent(int peers);
         void setMaximumPeersGlobally(int peers);
+
+        void setProxyUrl(const std::optional<QString>& url);
+        void setProxyRules(const QString& rules);
 
         [[nodiscard]] bool saveOnSet() const;
         void setSaveOnSet(bool save);

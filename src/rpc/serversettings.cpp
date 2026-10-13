@@ -61,6 +61,13 @@ namespace tremotesf {
         constexpr auto maximumPeersPerTorrentKey = "peer-limit-per-torrent"_L1;
         constexpr auto maximumPeersGloballyKey = "peer-limit-global"_L1;
 
+        constexpr auto proxyUrlKey = "proxy_url"_L1;
+        constexpr auto proxyRulesKey = "proxy_rules"_L1;
+
+        QJsonValue proxyUrlToJson(const std::optional<QString>& url) {
+            return url ? QJsonValue(*url) : QJsonValue(QJsonValue::Null);
+        }
+
         constexpr auto alternativeSpeedLimitsDaysMapper = EnumMapper(
             std::array{
                 // (1 << 0)
@@ -106,6 +113,8 @@ namespace tremotesf {
     bool ServerSettingsData::hasTrackerListProperty() const { return (rpcVersion >= 17); }
 
     bool ServerSettingsData::hasLabelsProperty() const { return (rpcVersion >= 16); }
+
+    bool ServerSettingsData::hasProxySettings() const { return (rpcVersion >= 20); }
 
     ServerSettings::ServerSettings(Rpc* rpc, QObject* parent) : QObject(parent), mRpc(rpc), mSaveOnSet(true) {}
 
@@ -383,6 +392,20 @@ namespace tremotesf {
         }
     }
 
+    void ServerSettings::setProxyUrl(const std::optional<QString>& url) {
+        mData.proxyUrl = url;
+        if (mSaveOnSet) {
+            mRpc->setSessionProperty(proxyUrlKey, proxyUrlToJson(mData.proxyUrl));
+        }
+    }
+
+    void ServerSettings::setProxyRules(const QString& rules) {
+        mData.proxyRules = rules;
+        if (mSaveOnSet) {
+            mRpc->setSessionProperty(proxyRulesKey, mData.proxyRules);
+        }
+    }
+
     bool ServerSettings::saveOnSet() const { return mSaveOnSet; }
 
     void ServerSettings::setSaveOnSet(bool save) { mSaveOnSet = save; }
@@ -489,13 +512,23 @@ namespace tremotesf {
         setChanged(mData.maximumPeersPerTorrent, serverSettings.value(maximumPeersPerTorrentKey).toInt(), changed);
         setChanged(mData.maximumPeersGlobally, serverSettings.value(maximumPeersGloballyKey).toInt(), changed);
 
+        if (mData.hasProxySettings()) {
+            const auto proxyUrl = serverSettings.value(proxyUrlKey);
+            setChanged(
+                mData.proxyUrl,
+                proxyUrl.isString() ? std::optional(proxyUrl.toString()) : std::nullopt,
+                changed
+            );
+            setChanged(mData.proxyRules, serverSettings.value(proxyRulesKey).toString(), changed);
+        }
+
         if (changed) {
             emit this->changed();
         }
     }
 
     void ServerSettings::save() const {
-        mRpc->setSessionProperties(
+        auto properties = QJsonObject(
             {{downloadDirectoryKey, mData.downloadDirectory},
              {trashTorrentFilesKey, mData.trashTorrentFiles},
              {startAddedTorrentsKey, mData.startAddedTorrents},
@@ -539,5 +572,12 @@ namespace tremotesf {
              {maximumPeersPerTorrentKey, mData.maximumPeersPerTorrent},
              {maximumPeersGloballyKey, mData.maximumPeersGlobally}}
         );
+
+        if (mData.hasProxySettings()) {
+            properties.insert(proxyUrlKey, proxyUrlToJson(mData.proxyUrl));
+            properties.insert(proxyRulesKey, mData.proxyRules);
+        }
+
+        mRpc->setSessionProperties(std::move(properties));
     }
 }
