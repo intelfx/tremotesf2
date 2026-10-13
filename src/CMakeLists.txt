@@ -87,6 +87,7 @@ target_sources(tremotesf_objects
     ui/screens/mainwindow/mainwindowsidebar.cpp
     ui/screens/mainwindow/mainwindowstatusbar.cpp
     ui/screens/mainwindow/mainwindowviewmodel.cpp
+    ui/screens/mainwindow/mergetorrentsdialog.cpp
     ui/screens/mainwindow/statusfiltersmodel.cpp
     ui/screens/mainwindow/torrentsmodel.cpp
     ui/screens/mainwindow/torrentsproxymodel.cpp
@@ -198,6 +199,7 @@ target_sources(tremotesf_objects
     ui/screens/mainwindow/mainwindowsidebar.h
     ui/screens/mainwindow/mainwindowstatusbar.h
     ui/screens/mainwindow/mainwindowviewmodel.h
+    ui/screens/mainwindow/mergetorrentsdialog.h
     ui/screens/mainwindow/statusfiltersmodel.h
     ui/screens/mainwindow/torrentsmodel.h
     ui/screens/mainwindow/torrentsproxymodel.h

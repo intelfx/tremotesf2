@@ -46,6 +46,7 @@
 #include "rpc/mounteddirectoriesutils.h"
 #include "rpc/torrent.h"
 #include "rpc/servers.h"
+#include "rpc/serversettings.h"
 
 #include "ui/savewindowstatedispatcher.h"
 #include "ui/stylehelpers.h"
@@ -71,6 +72,7 @@
 #include "mainwindowsidebar.h"
 #include "mainwindowstatusbar.h"
 #include "mainwindowviewmodel.h"
+#include "mergetorrentsdialog.h"
 #include "settings.h"
 #include "target_os.h"
 #include "torrentsmodel.h"
@@ -452,6 +454,9 @@ namespace tremotesf {
         QAction* mNormalPriorityAction{};
         QAction* mLowPriorityAction{};
 
+        QMenu* mMergeMenu{};
+        QAction* mMergeStatisticsAction{};
+
         std::vector<QAction*> mConnectionDependentActions;
 
         QMenu* mFileMenu{};
@@ -652,6 +657,27 @@ namespace tremotesf {
                     auto dialog = new EditLabelsDialog(selectedTorrents, mViewModel.rpc(), mWindow);
                     dialog->setAttribute(Qt::WA_DeleteOnClose);
                     dialog->show();
+                }
+            });
+
+            mMergeMenu = mTorrentMenu->addMenu(
+                //: Torrent's context menu item
+                qApp->translate("tremotesf", "&Merge")
+            );
+
+            mMergeStatisticsAction = mMergeMenu->addAction(
+                //: Torrent's context menu item
+                qApp->translate("tremotesf", "Merge &Statistics...")
+            );
+            QObject::connect(mMergeStatisticsAction, &QAction::triggered, this, [this] {
+                const auto indexes = mTorrentsProxyModel.sourceIndexes(mTorrentsView.selectionModel()->selectedRows());
+                if (indexes.size() == 2) {
+                    auto older = mTorrentsModel.torrentAtIndex(indexes.first());
+                    auto newer = mTorrentsModel.torrentAtIndex(indexes.last());
+                    if (newer->data().addedDate < older->data().addedDate) {
+                        std::swap(older, newer);
+                    }
+                    showMergeTorrentsDialog(older, newer);
                 }
             });
 
@@ -918,6 +944,8 @@ namespace tremotesf {
         }
 
         void updateTorrentActions() {
+            mMergeMenu->menuAction()->setVisible(mViewModel.rpc()->serverSettings()->data().canMergeTorrents());
+
             const auto actions = mTorrentMenu->actions();
 
             if (!mTorrentsView.selectionModel()->hasSelection()) {
@@ -958,6 +986,8 @@ namespace tremotesf {
             } else {
                 mRenameTorrentAction->setEnabled(false);
             }
+
+            mMergeStatisticsAction->setEnabled(selectedRows.size() == 2);
 
             bool localOrMounted = true;
             if (!mViewModel.rpc()->isLocal()) {
@@ -1017,6 +1047,12 @@ namespace tremotesf {
                     dialog->show();
                 }
             }
+        }
+
+        void showMergeTorrentsDialog(const Torrent* source, const Torrent* target) {
+            auto dialog = new MergeTorrentsDialog(source, target, mViewModel.rpc(), mWindow);
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->show();
         }
 
         void removeSelectedTorrents(bool deleteFiles) {
