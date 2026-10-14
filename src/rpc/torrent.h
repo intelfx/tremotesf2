@@ -209,6 +209,8 @@ namespace tremotesf {
         void changed();
 
         void filesUpdated(const std::vector<int>& changedIndexes);
+        // Previous files are gone, and filesUpdated() is going to report the new ones
+        void filesReset();
         void peersUpdated(
             const std::vector<std::pair<int, int>>& removedIndexRanges,
             const std::vector<std::pair<int, int>>& changedIndexRanges,

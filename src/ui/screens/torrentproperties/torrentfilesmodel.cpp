@@ -84,6 +84,7 @@ namespace tremotesf {
         resetTree();
         if (mTorrent) {
             QObject::connect(mTorrent, &Torrent::filesUpdated, this, &TorrentFilesModel::update);
+            QObject::connect(mTorrent, &Torrent::filesReset, this, &TorrentFilesModel::resetTree);
             QObject::connect(mTorrent, &Torrent::fileRenamed, this, &TorrentFilesModel::fileRenamed);
             if (mTorrent->isFilesEnabled()) {
                 warning().log("{} already has enabled files, this shouldn't happen", *mTorrent);
