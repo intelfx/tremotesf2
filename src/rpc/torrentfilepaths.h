@@ -22,6 +22,20 @@ namespace tremotesf {
     };
 
     /**
+     * Removes the top-level folder of torrent's files, e.g. turns "Album/1.flac" and "Album/2.flac"
+     * into "1.flac" and "2.flac".
+     * @return std::nullopt if the files are not in a single top-level folder
+     */
+    std::optional<std::vector<QString>> removeTopLevelFolder(std::span<const QString> filePaths);
+
+    /**
+     * Puts torrent's single file into a top-level folder named after it without its extension,
+     * e.g. turns "Movie.mkv" into "Movie/Movie.mkv".
+     * @return std::nullopt if the torrent doesn't consist of a single file that is not in any folder
+     */
+    std::optional<std::vector<QString>> addTopLevelFolder(std::span<const QString> filePaths);
+
+    /**
      * Moves the top-level folder of torrent's files into its location, e.g. turns location "/music"
      * with files "Album/1.flac" and "Album/2.flac" into location "/music/Album" with files "1.flac" and "2.flac".
      * @param location Normalized location

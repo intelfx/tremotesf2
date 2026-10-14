@@ -17,6 +17,25 @@ class TorrentFilePathsTest final : public QObject {
     Q_OBJECT
 
 private slots:
+    void checkRemoveTopLevelFolder() {
+        QCOMPARE(
+            removeTopLevelFolder(Paths{u"Album/1.flac"_s, u"Album/CD2/2.flac"_s}),
+            (Paths{u"1.flac"_s, u"CD2/2.flac"_s})
+        );
+        QCOMPARE(removeTopLevelFolder(Paths{u"Movie/Movie.mkv"_s}), (Paths{u"Movie.mkv"_s}));
+        QCOMPARE(removeTopLevelFolder(Paths{u"Movie.mkv"_s}), std::nullopt);
+        QCOMPARE(removeTopLevelFolder(Paths{u"Album/1.flac"_s, u"Album2/2.flac"_s}), std::nullopt);
+    }
+
+    void checkAddTopLevelFolder() {
+        QCOMPARE(addTopLevelFolder(Paths{u"Movie.mkv"_s}), (Paths{u"Movie/Movie.mkv"_s}));
+        QCOMPARE(addTopLevelFolder(Paths{u"archive.tar.gz"_s}), (Paths{u"archive.tar/archive.tar.gz"_s}));
+        QCOMPARE(addTopLevelFolder(Paths{u"README"_s}), (Paths{u"README/README"_s}));
+        QCOMPARE(addTopLevelFolder(Paths{u".hidden"_s}), (Paths{u".hidden/.hidden"_s}));
+        QCOMPARE(addTopLevelFolder(Paths{u"Movie/Movie.mkv"_s}), std::nullopt);
+        QCOMPARE(addTopLevelFolder(Paths{u"1.flac"_s, u"2.flac"_s}), std::nullopt);
+    }
+
     void checkMoveTopLevelFolderIntoLocation() {
         QCOMPARE(
             moveTopLevelFolderIntoLocation(u"/music"_s, Paths{u"Album/1.flac"_s, u"Album/CD2/2.flac"_s}),

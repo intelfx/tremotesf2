@@ -13,6 +13,8 @@
 #include "rpc/rpc.h"
 #include "rpc/servers.h"
 #include "rpc/serversettings.h"
+#include "rpc/torrentfilepaths.h"
+#include "torrentfileparser.h"
 
 namespace tremotesf {
     AddTorrentParameters getAddTorrentParameters(Rpc* rpc) {
@@ -27,7 +29,8 @@ namespace tremotesf {
             .priority = settings->get_lastAddTorrentPriority(),
             .startAfterAdding = settings->get_lastAddTorrentStartAfterAdding(),
             .deleteTorrentFile = settings->get_lastAddTorrentDeleteTorrentFile(),
-            .moveTorrentFileToTrash = settings->get_lastAddTorrentMoveTorrentFileToTrash()
+            .moveTorrentFileToTrash = settings->get_lastAddTorrentMoveTorrentFileToTrash(),
+            .contentLayout = settings->get_lastAddTorrentContentLayout()
         };
     }
 
@@ -38,8 +41,38 @@ namespace tremotesf {
             .priority = TorrentData::Priority::Normal,
             .startAfterAdding = serverSettings->data().startAddedTorrents,
             .deleteTorrentFile = false,
-            .moveTorrentFileToTrash = true
+            .moveTorrentFileToTrash = true,
+            .contentLayout = Settings::TorrentContentLayout::Original
         };
+    }
+
+    std::vector<QString> takeFilePaths(TorrentMetainfoFile& torrentFile) {
+        if (torrentFile.isSingleFile()) {
+            return {torrentFile.rootFileName};
+        }
+        return torrentFile.files()
+               | std::views::transform([&](TorrentMetainfoFile::File file) {
+                     QString path = torrentFile.rootFileName;
+                     for (const QString& part : file.path()) {
+                         path += u'/';
+                         path += part;
+                     }
+                     return path;
+                 })
+               | std::ranges::to<std::vector>();
+    }
+
+    std::optional<std::vector<QString>>
+    applyContentLayout(std::span<const QString> filePaths, Settings::TorrentContentLayout layout) {
+        switch (layout) {
+        case Settings::TorrentContentLayout::Original:
+            return std::nullopt;
+        case Settings::TorrentContentLayout::CreateSubfolder:
+            return addTopLevelFolder(filePaths);
+        case Settings::TorrentContentLayout::NoSubfolder:
+            return removeTopLevelFolder(filePaths);
+        }
+        return std::nullopt;
     }
 
     QDialog*

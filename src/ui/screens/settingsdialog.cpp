@@ -295,6 +295,7 @@ namespace tremotesf {
             rememberAddTorrentParametersCheckBox->setChecked(settings->get_rememberAddTorrentParameters());
             addTorrentParametersDisconnectedMessage->setVisible(!rpc->isConnected());
             addTorrentParametersGroupBox->setEnabled(rpc->isConnected());
+            addTorrentParametersWidgets.updateContentLayoutVisibility(rpc);
             QObject::connect(rpc, &Rpc::connectedChanged, page, [=] {
                 const bool connected = rpc->isConnected();
                 if (connected) {
@@ -303,6 +304,7 @@ namespace tremotesf {
                     addTorrentParametersDisconnectedMessage->animatedShow();
                 }
                 addTorrentParametersGroupBox->setEnabled(connected);
+                addTorrentParametersWidgets.updateContentLayoutVisibility(rpc);
                 if (connected) {
                     // Update parameters which initial values depend on server state
                     const auto parameters = getAddTorrentParameters(rpc);

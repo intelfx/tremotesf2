@@ -6,6 +6,7 @@
 
 #include <ranges>
 
+#include "addtorrenthelpers.h"
 #include "coroutines/threadpool.h"
 #include "ui/itemmodels/torrentfilesmodelentry.h"
 #include "ui/itemmodels/torrentfilestreebuilder.h"
@@ -57,6 +58,9 @@ namespace tremotesf {
                 mFiles | std::views::transform(&TorrentFilesModelEntry::path) | std::ranges::to<std::vector>();
             mLoaded = true;
             endResetModel();
+            if (mContentLayout != Settings::TorrentContentLayout::Original) {
+                layOutFiles();
+            }
         } catch (const bencode::Error&) {
             endResetModel();
             throw;
@@ -114,6 +118,44 @@ namespace tremotesf {
             paths.clear();
         }
         return paths;
+    }
+
+    void LocalTorrentFilesModel::setContentLayout(Settings::TorrentContentLayout layout) {
+        if (layout == mContentLayout) {
+            return;
+        }
+        mContentLayout = layout;
+        if (mLoaded) {
+            layOutFiles();
+        }
+    }
+
+    void LocalTorrentFilesModel::layOutFiles() {
+        const auto laidOutPaths = applyContentLayout(mTorrentFilePaths, mContentLayout);
+        const auto& paths = laidOutPaths ? *laidOutPaths : mTorrentFilePaths;
+
+        TorrentFilesTreeBuilder builder(paths.size());
+        const bool hasSingleTopLevelEntry = TorrentFilesTreeBuilder::hasSingleTopLevelEntry(paths);
+        if (!hasSingleTopLevelEntry) {
+            builder.initializeRootDirectory({});
+        }
+        for (const auto& [path, file] : std::views::zip(paths, mFiles)) {
+            builder.addFile(
+                path.tokenize(u'/', Qt::SkipEmptyParts),
+                hasSingleTopLevelEntry,
+                file->size(),
+                0,
+                file->wantedState() != TorrentFilesModelEntry::WantedState::Unwanted,
+                file->priority()
+            );
+        }
+        builder.calculateDirectoriesRecursively();
+
+        beginResetModel();
+        mRootEntry = std::move(builder.rootEntry);
+        mFiles = std::move(builder.files);
+        mRenamedFiles.clear();
+        endResetModel();
     }
 
     void LocalTorrentFilesModel::renameFile(const QModelIndex& index, const QString& newName) {

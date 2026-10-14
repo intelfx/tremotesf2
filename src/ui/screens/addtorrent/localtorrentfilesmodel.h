@@ -9,6 +9,7 @@
 #include <optional>
 #include <vector>
 
+#include "settings.h"
 #include "ui/itemmodels/basetorrentfilesmodel.h"
 #include "coroutines/coroutinefwd.h"
 
@@ -40,10 +41,16 @@ namespace tremotesf {
          */
         std::vector<std::optional<QString>> filePaths() const;
 
+        // Lays out the files anew, which discards renamed files
+        void setContentLayout(Settings::TorrentContentLayout layout);
+
         void renameFile(const QModelIndex& index, const QString& newName) override;
 
     private:
+        void layOutFiles();
+
         bool mLoaded{};
+        Settings::TorrentContentLayout mContentLayout{Settings::TorrentContentLayout::Original};
 
         std::map<QString, QString> mRenamedFiles{};
         std::vector<QString> mTorrentFilePaths{};

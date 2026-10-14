@@ -10,8 +10,7 @@
 using namespace Qt::StringLiterals;
 
 namespace tremotesf {
-    std::optional<TorrentFilesLayout>
-    moveTopLevelFolderIntoLocation(const QString& location, std::span<const QString> filePaths) {
+    std::optional<std::vector<QString>> removeTopLevelFolder(std::span<const QString> filePaths) {
         if (filePaths.empty()) {
             return std::nullopt;
         }
@@ -25,12 +24,31 @@ namespace tremotesf {
             })) {
             return std::nullopt;
         }
-        const auto topLevelFolder = prefix.chopped(1);
+        return filePaths
+               | std::views::transform([&](const QString& path) { return path.sliced(prefix.size()); })
+               | std::ranges::to<std::vector>();
+    }
+
+    std::optional<std::vector<QString>> addTopLevelFolder(std::span<const QString> filePaths) {
+        if (filePaths.size() != 1 || filePaths.front().contains(u'/')) {
+            return std::nullopt;
+        }
+        const auto& fileName = filePaths.front();
+        const auto extension = fileName.lastIndexOf(u'.');
+        const auto folder = extension > 0 ? fileName.first(extension) : fileName;
+        return std::vector{folder + u'/' + fileName};
+    }
+
+    std::optional<TorrentFilesLayout>
+    moveTopLevelFolderIntoLocation(const QString& location, std::span<const QString> filePaths) {
+        auto paths = removeTopLevelFolder(filePaths);
+        if (!paths) {
+            return std::nullopt;
+        }
+        const auto topLevelFolder = QStringView(filePaths.front()).chopped(paths->front().size() + 1);
         return TorrentFilesLayout{
             .location = location.endsWith(u'/') ? location + topLevelFolder : location + u'/' + topLevelFolder,
-            .filePaths = filePaths
-                         | std::views::transform([&](const QString& path) { return path.sliced(prefix.size()); })
-                         | std::ranges::to<std::vector>()
+            .filePaths = std::move(*paths)
         };
     }
 

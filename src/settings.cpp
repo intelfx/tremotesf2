@@ -149,6 +149,12 @@ namespace tremotesf {
         "torrentDoubleClickAction",
         Settings::TorrentDoubleClickAction::OpenPropertiesDialog
     )
+    SETTINGS_PROPERTY_DEF(
+        Settings::TorrentContentLayout,
+        lastAddTorrentContentLayout,
+        "lastAddTorrentContentLayout",
+        Settings::TorrentContentLayout::Original
+    )
 
     SETTINGS_PROPERTY_DEF(bool, displayRelativeTime, "displayRelativeTime", false)
 
@@ -172,6 +178,7 @@ namespace tremotesf {
         qRegisterMetaType<TorrentsProxyModel::StatusFilter>();
         qRegisterMetaType<Settings::DarkThemeMode>();
         qRegisterMetaType<Settings::TorrentDoubleClickAction>();
+        qRegisterMetaType<Settings::TorrentContentLayout>();
     }
 
     void Settings::sync() { mSettings->sync(); }

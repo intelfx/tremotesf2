@@ -51,6 +51,12 @@ namespace tremotesf {
             TorrentData::Priority::High, TorrentData::Priority::Normal, TorrentData::Priority::Low
         };
 
+        constexpr std::array contentLayoutComboBoxItems{
+            Settings::TorrentContentLayout::Original,
+            Settings::TorrentContentLayout::CreateSubfolder,
+            Settings::TorrentContentLayout::NoSubfolder
+        };
+
         TorrentData::Priority priorityFromComboBoxIndex(int index) {
             if (index == -1) {
                 return TorrentData::Priority::Normal;
@@ -175,6 +181,36 @@ namespace tremotesf {
         //: Combo box label
         layout->addRow(qApp->translate("tremotesf", "Torrent priority:"), priorityComboBox);
 
+        QComboBox* contentLayoutComboBox{};
+        QWidget* contentLayoutLabel{};
+        if (forTorrentFile) {
+            contentLayoutComboBox = new QComboBox{};
+            contentLayoutComboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+            for (const auto contentLayout : contentLayoutComboBoxItems) {
+                switch (contentLayout) {
+                case Settings::TorrentContentLayout::Original:
+                    //: Content layout of added torrent: files are laid out as in the torrent file
+                    contentLayoutComboBox->addItem(qApp->translate("tremotesf", "Original"));
+                    break;
+                case Settings::TorrentContentLayout::CreateSubfolder:
+                    //: Content layout of added torrent: a torrent with a single file gets a folder for it
+                    contentLayoutComboBox->addItem(qApp->translate("tremotesf", "Create subfolder"));
+                    break;
+                case Settings::TorrentContentLayout::NoSubfolder:
+                    //: Content layout of added torrent: files are not put into the torrent's top-level folder
+                    contentLayoutComboBox->addItem(qApp->translate("tremotesf", "Don't create subfolder"));
+                    break;
+                }
+            }
+            contentLayoutComboBox->setCurrentIndex(
+                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+                indexOfCasted<int>(contentLayoutComboBoxItems, parameters.contentLayout).value()
+            );
+            //: Combo box label
+            layout->addRow(qApp->translate("tremotesf", "Content layout:"), contentLayoutComboBox);
+            contentLayoutLabel = layout->labelForField(contentLayoutComboBox);
+        }
+
         auto* const startTorrentCheckBox =
             new QCheckBox(qApp->translate("tremotesf", "Start downloading after adding"));
         startTorrentCheckBox->setChecked(parameters.startAfterAdding);
@@ -200,7 +236,9 @@ namespace tremotesf {
             .priorityComboBox = priorityComboBox,
             .startTorrentCheckBox = startTorrentCheckBox,
             .deleteTorrentFileGroupBox = deleteTorrentFileGroupBox,
-            .moveTorrentFileToTrashCheckBox = moveTorrentFileToTrashCheckBox
+            .moveTorrentFileToTrashCheckBox = moveTorrentFileToTrashCheckBox,
+            .contentLayoutComboBox = contentLayoutComboBox,
+            .contentLayoutLabel = contentLayoutLabel
         };
     }
 
@@ -261,6 +299,12 @@ namespace tremotesf {
         if (isAddingFile()) {
             mTorrentFilesView = new TorrentFilesView(mFilesModel, mRpc);
             layout->insertRow(rowForWidget(layout, mFreeSpaceLabel) + 1, mTorrentFilesView);
+            QObject::connect(
+                mAddTorrentParametersWidgets.contentLayoutComboBox,
+                &QComboBox::currentIndexChanged,
+                this,
+                &AddTorrentDialog::updateContentLayout
+            );
         }
 
         mEditLabelsGroupBox = new QGroupBox(qApp->translate("tremotesf", "Labels"), this);
@@ -337,7 +381,20 @@ namespace tremotesf {
             mRpc->isConnected() ? mRpc->serverSettings()->data().hasLabelsProperty() : true
         );
 
+        mAddTorrentParametersWidgets.updateContentLayoutVisibility(mRpc);
+        updateContentLayout();
+
         canAcceptUpdate();
+    }
+
+    void AddTorrentDialog::updateContentLayout() {
+        if (!mFilesModel) {
+            return;
+        }
+        const bool canSetFilePaths = mRpc->isConnected() && mRpc->serverSettings()->data().canSetFilePaths();
+        mFilesModel->setContentLayout(
+            canSetFilePaths ? mAddTorrentParametersWidgets.contentLayout() : Settings::TorrentContentLayout::Original
+        );
     }
 
     void AddTorrentDialog::canAcceptUpdate() {
@@ -479,6 +536,12 @@ namespace tremotesf {
             deleteTorrentFileGroupBox->setChecked(initialParameters.deleteTorrentFile);
             moveTorrentFileToTrashCheckBox->setChecked(initialParameters.moveTorrentFileToTrash);
         }
+        if (contentLayoutComboBox) {
+            contentLayoutComboBox->setCurrentIndex(
+                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+                indexOfCasted<int>(contentLayoutComboBoxItems, initialParameters.contentLayout).value()
+            );
+        }
     }
 
     void AddTorrentDialog::AddTorrentParametersWidgets::saveToSettings() const {
@@ -490,6 +553,23 @@ namespace tremotesf {
             settings->set_lastAddTorrentDeleteTorrentFile(deleteTorrentFileGroupBox->isChecked());
             settings->set_lastAddTorrentMoveTorrentFileToTrash(moveTorrentFileToTrashCheckBox->isChecked());
         }
+        if (contentLayoutComboBox) {
+            settings->set_lastAddTorrentContentLayout(contentLayout());
+        }
     }
 
+    Settings::TorrentContentLayout AddTorrentDialog::AddTorrentParametersWidgets::contentLayout() const {
+        if (!contentLayoutComboBox || contentLayoutComboBox->currentIndex() == -1) {
+            return Settings::TorrentContentLayout::Original;
+        }
+        return contentLayoutComboBoxItems.at(static_cast<size_t>(contentLayoutComboBox->currentIndex()));
+    }
+
+    void AddTorrentDialog::AddTorrentParametersWidgets::updateContentLayoutVisibility(Rpc* rpc) const {
+        if (contentLayoutComboBox) {
+            const bool visible = !rpc->isConnected() || rpc->serverSettings()->data().canSetFilePaths();
+            contentLayoutComboBox->setVisible(visible);
+            contentLayoutLabel->setVisible(visible);
+        }
+    }
 }

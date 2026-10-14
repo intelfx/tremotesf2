@@ -50,7 +50,7 @@ namespace tremotesf {
         Coroutine<std::vector<std::pair<Torrent*, std::vector<std::set<QString>>>>>
         separateTorrentsThatAlreadyExistForFiles(QStringList& files);
         Coroutine<> parseTorrentFile(QString filePath, std::vector<std::pair<QString, TorrentMetainfoFile>>& output);
-        void addTorrentFilesWithoutDialog(const QStringList& files);
+        Coroutine<> addTorrentFilesWithoutDialog(QStringList files);
 
         std::vector<std::pair<Torrent*, std::vector<std::set<QString>>>>
         separateTorrentsThatAlreadyExistForLinks(QStringList& urls);

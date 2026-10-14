@@ -15,6 +15,7 @@
 #include <QStringList>
 
 #include "coroutines/scope.h"
+#include "settings.h"
 #include "ui/savewindowstatedispatcher.h"
 
 class QCheckBox;
@@ -57,9 +58,15 @@ namespace tremotesf {
             QCheckBox* startTorrentCheckBox;
             QGroupBox* deleteTorrentFileGroupBox;
             QCheckBox* moveTorrentFileToTrashCheckBox;
+            QComboBox* contentLayoutComboBox;
+            QWidget* contentLayoutLabel;
 
             void reset(Rpc* rpc) const;
             void saveToSettings() const;
+
+            Settings::TorrentContentLayout contentLayout() const;
+            // Content layout is shown only if the server can set file paths of added torrents
+            void updateContentLayoutVisibility(Rpc* rpc) const;
         };
 
         static AddTorrentParametersWidgets
@@ -70,6 +77,7 @@ namespace tremotesf {
 
         void setupUi();
         void updateUi();
+        void updateContentLayout();
         void canAcceptUpdate();
         void saveState();
 

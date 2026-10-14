@@ -90,9 +90,15 @@ namespace tremotesf {
         enum class TorrentDoubleClickAction { OpenPropertiesDialog, OpenTorrentFile, OpenDownloadDirectory };
         Q_ENUM(TorrentDoubleClickAction)
 
+        // How files of an added torrent are laid out: as in the torrent file, always in a top-level folder,
+        // or never in one
+        enum class TorrentContentLayout { Original, CreateSubfolder, NoSubfolder };
+        Q_ENUM(TorrentContentLayout)
+
         SETTINGS_PROPERTY(Settings::DarkThemeMode, darkThemeMode)
         SETTINGS_PROPERTY(bool, useSystemAccentColor)
         SETTINGS_PROPERTY(Settings::TorrentDoubleClickAction, torrentDoubleClickAction)
+        SETTINGS_PROPERTY(Settings::TorrentContentLayout, lastAddTorrentContentLayout)
 
     public:
         static Settings* instance();

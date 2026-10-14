@@ -5,6 +5,7 @@
 #include "mainwindowviewmodel.h"
 
 #include <chrono>
+#include <iterator>
 
 #include <QClipboard>
 #include <QDragEnterEvent>
@@ -22,6 +23,7 @@
 #include "log/log.h"
 #include "ipc/ipcserver.h"
 #include "rpc/servers.h"
+#include "rpc/serversettings.h"
 #include "ui/screens/addtorrent/addtorrenthelpers.h"
 #include "ui/screens/addtorrent/droppedtorrents.h"
 #include "ui/notificationscontroller.h"
@@ -247,10 +249,34 @@ namespace tremotesf {
         }
     }
 
-    void MainWindowViewModel::addTorrentFilesWithoutDialog(const QStringList& files) {
-        if (files.isEmpty()) return;
+    Coroutine<> MainWindowViewModel::addTorrentFilesWithoutDialog(QStringList files) {
+        if (files.isEmpty()) co_return;
         const auto parameters = getAddTorrentParameters(&mRpc);
+        const bool layOutFiles = parameters.contentLayout != Settings::TorrentContentLayout::Original
+                                 && mRpc.serverSettings()->data().canSetFilePaths();
         for (const auto& filePath : files) {
+            std::vector<std::optional<QString>> filePaths{};
+            if (layOutFiles) {
+                filePaths = co_await runOnThreadPool(
+                    [](const QString& path, Settings::TorrentContentLayout layout) {
+                        std::vector<std::optional<QString>> laidOutPaths{};
+                        try {
+                            auto torrentFile = tremotesf::parseTorrentFile(path);
+                            if (auto paths = applyContentLayout(takeFilePaths(torrentFile), layout)) {
+                                laidOutPaths.assign(
+                                    std::make_move_iterator(paths->begin()),
+                                    std::make_move_iterator(paths->end())
+                                );
+                            }
+                        } catch (const bencode::Error& e) {
+                            warning().logWithException(e, "Failed to parse torrent file {}", path);
+                        }
+                        return laidOutPaths;
+                    },
+                    filePath,
+                    parameters.contentLayout
+                );
+            }
             mRpc.addTorrentFile(
                 filePath,
                 parameters.downloadDirectory,
@@ -258,7 +284,7 @@ namespace tremotesf {
                 {},
                 {},
                 {},
-                {},
+                std::move(filePaths),
                 parameters.priority,
                 parameters.startAfterAdding,
                 parameters.deleteTorrentFile ? (parameters.moveTorrentFileToTrash ? Rpc::DeleteFileMode::MoveToTrash
@@ -356,7 +382,7 @@ namespace tremotesf {
                 emit askForMergingTrackers(existingTorrents, windowActivationToken);
                 windowActivationToken.reset();
             }
-            addTorrentFilesWithoutDialog(files);
+            co_await addTorrentFilesWithoutDialog(files);
         }
     }
 }
