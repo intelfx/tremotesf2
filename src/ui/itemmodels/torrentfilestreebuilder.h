@@ -5,10 +5,13 @@
 #ifndef TREMOTESF_TORRENTFILESTREEBUILDER_H
 #define TREMOTESF_TORRENTFILESTREEBUILDER_H
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <vector>
 #include <QHash>
+#include <QStringView>
 
 #include "torrentfilesmodelentry.h"
 
@@ -27,6 +30,35 @@ namespace tremotesf {
 
         ~TorrentFilesTreeBuilder() = default;
         Q_DISABLE_COPY_MOVE(TorrentFilesTreeBuilder)
+
+        /**
+         * Whether files with these paths have a single top-level entry: either a single file,
+         * or a directory that holds all of them. If they don't, call initializeRootDirectory() with an empty name
+         * and add the files with pathIncludesFirstPart = false: the root entry is then an unnamed directory
+         * that holds all the top-level entries.
+         */
+        template<std::ranges::forward_range Paths>
+        static bool hasSingleTopLevelEntry(Paths&& paths) {
+            auto iter = std::ranges::begin(paths);
+            const auto end = std::ranges::end(paths);
+            if (iter == end || std::ranges::next(iter) == end) {
+                return true;
+            }
+            const auto topLevelDirectory = [](QStringView path) -> std::optional<QStringView> {
+                const auto separator = path.indexOf(u'/');
+                if (separator == -1) {
+                    return std::nullopt;
+                }
+                return path.first(separator);
+            };
+            const auto first = topLevelDirectory(*iter);
+            if (!first) {
+                return false;
+            }
+            return std::ranges::all_of(std::ranges::subrange(std::ranges::next(iter), end), [&](const auto& path) {
+                return topLevelDirectory(path) == first;
+            });
+        }
 
         void initializeRootDirectory(QString name) {
             rootEntry =

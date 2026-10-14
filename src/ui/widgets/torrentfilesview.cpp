@@ -4,6 +4,9 @@
 
 #include "torrentfilesview.h"
 
+#include <algorithm>
+#include <ranges>
+
 #include <QAction>
 #include <QActionGroup>
 #include <QCoreApplication>
@@ -117,11 +120,13 @@ namespace tremotesf {
     }
 
     void TorrentFilesView::onModelReset() {
-        if (mModel->rowCount() > 0) {
-            if (mModel->rowCount(mModel->index(0, 0)) == 0) {
-                setRootIsDecorated(false);
-            } else {
-                setRootIsDecorated(true);
+        const int topLevelRows = mModel->rowCount();
+        if (topLevelRows > 0) {
+            const bool hasDirectories = std::ranges::any_of(std::views::iota(0, topLevelRows), [&](int row) {
+                return mModel->rowCount(mModel->index(row, 0)) > 0;
+            });
+            setRootIsDecorated(hasDirectories);
+            if (hasDirectories && topLevelRows == 1) {
                 expand(mProxyModel->index(0, 0));
             }
         }

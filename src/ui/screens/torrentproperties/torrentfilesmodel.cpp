@@ -4,6 +4,8 @@
 
 #include "torrentfilesmodel.h"
 
+#include <ranges>
+
 #include <QStringBuilder>
 
 #include "coroutines/threadpool.h"
@@ -35,10 +37,15 @@ namespace tremotesf {
         std::pair<std::unique_ptr<TorrentFilesModelEntry>, std::vector<TorrentFilesModelEntry*>>
         doCreateTree(const std::vector<TorrentFile>& files) {
             TorrentFilesTreeBuilder builder(files.size());
+            const bool hasSingleTopLevelEntry =
+                TorrentFilesTreeBuilder::hasSingleTopLevelEntry(files | std::views::transform(&TorrentFile::path));
+            if (!hasSingleTopLevelEntry) {
+                builder.initializeRootDirectory({});
+            }
             for (const TorrentFile& file : files) {
                 builder.addFile(
                     file.pathParts(),
-                    true,
+                    hasSingleTopLevelEntry,
                     file.size,
                     file.completedSize,
                     file.wanted,

@@ -169,6 +169,49 @@ namespace tremotesf {
             mFiles = std::move(builder.files);
         }
 
+        void populateWithoutSingleTopLevelEntry() {
+            const std::array files{
+                File{
+                    .path = "dir1/file1",
+                    .size = 100,
+                    .completedSize = 0,
+                    .priority = TorrentFilesModelEntry::Priority::Normal,
+                    .wanted = true
+                },
+                File{
+                    .path = "file2",
+                    .size = 20,
+                    .completedSize = 0,
+                    .priority = TorrentFilesModelEntry::Priority::Normal,
+                    .wanted = true
+                },
+                File{
+                    .path = "dir1/file3",
+                    .size = 3,
+                    .completedSize = 0,
+                    .priority = TorrentFilesModelEntry::Priority::Normal,
+                    .wanted = true
+                }
+            };
+            const auto paths = files | std::views::transform(&File::path);
+            QVERIFY(!TorrentFilesTreeBuilder::hasSingleTopLevelEntry(paths));
+            TorrentFilesTreeBuilder builder(files.size());
+            builder.initializeRootDirectory({});
+            for (const File& file : files) {
+                builder.addFile(
+                    file.path.tokenize(u'/', Qt::SkipEmptyParts),
+                    false,
+                    file.size,
+                    file.completedSize,
+                    file.wanted,
+                    file.priority
+                );
+            }
+            builder.calculateDirectoriesRecursively();
+            mRootEntry = std::move(builder.rootEntry);
+            mFiles = std::move(builder.files);
+        }
+
         void populateMixedState() {
             const std::array files{
                 File{
@@ -715,6 +758,65 @@ namespace tremotesf {
                       }}
                  }}
             );
+        }
+
+        void checkHasSingleTopLevelEntry() {
+            using Paths = std::vector<QString>;
+            QVERIFY(TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{}));
+            QVERIFY(TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"file"_s}));
+            QVERIFY(TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"dir/file"_s}));
+            QVERIFY(TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"dir/file1"_s, u"dir/sub/file2"_s}));
+            QVERIFY(!TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"file1"_s, u"file2"_s}));
+            QVERIFY(!TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"dir/file1"_s, u"file2"_s}));
+            QVERIFY(!TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"dir1/file1"_s, u"dir2/file2"_s}));
+            QVERIFY(!TorrentFilesTreeBuilder::hasSingleTopLevelEntry(Paths{u"dir/file1"_s, u"dirx/file2"_s}));
+        }
+
+        void checkWithoutSingleTopLevelEntry() {
+            TestTorrentFilesModel model{};
+            model.populateWithoutSingleTopLevelEntry();
+
+            QCOMPARE(model.rowCount(), 2);
+            const auto dir1 = indexForPath("dir1"_L1, model);
+            const auto file1 = indexForPath("dir1/file1"_L1, model);
+            const auto file2 = indexForPath("file2"_L1, model);
+            QCOMPARE(model.parent(dir1), QModelIndex{});
+            QCOMPARE(model.parent(file2), QModelIndex{});
+            QCOMPARE(model.parent(file1), dir1);
+            QCOMPARE(static_cast<const TorrentFilesModelEntry*>(file1.internalPointer())->path(), u"dir1/file1"_s);
+            QCOMPARE(static_cast<const TorrentFilesModelEntry*>(file2.internalPointer())->path(), u"file2"_s);
+
+            checkTree(
+                model,
+                {.name = "dir1"_L1,
+                 .size = 103,
+                 .progress = 0.0,
+                 .priority = TorrentFilesModelEntry::Priority::Normal,
+                 .checkState = Qt::CheckState::Checked,
+                 .children = {
+                     {.name = "file1"_L1,
+                      .size = 100,
+                      .progress = 0.0,
+                      .priority = TorrentFilesModelEntry::Priority::Normal,
+                      .checkState = Qt::CheckState::Checked},
+                     {.name = "file3"_L1,
+                      .size = 3,
+                      .progress = 0.0,
+                      .priority = TorrentFilesModelEntry::Priority::Normal,
+                      .checkState = Qt::CheckState::Checked}
+                 }}
+            );
+
+            QSignalSpy dataChanged(&model, &QAbstractItemModel::dataChanged);
+            model.updateFiles(std::array{1}, [](size_t, TorrentFilesModelEntry* file) {
+                file->update(true, TorrentFilesModelEntry::Priority::High, 0);
+            });
+            QCOMPARE(actualDataChanged(dataChanged), std::set{ExpectedDataChanged::allColumnsAndRoles(file2)});
+            dataChanged.clear();
+
+            model.setFilesWanted({dir1}, false);
+            QCOMPARE(file1.data(Qt::CheckStateRole).value<Qt::CheckState>(), Qt::CheckState::Unchecked);
+            QCOMPARE(file2.data(Qt::CheckStateRole).value<Qt::CheckState>(), Qt::CheckState::Checked);
         }
 
         void checkUpdateFiles() {

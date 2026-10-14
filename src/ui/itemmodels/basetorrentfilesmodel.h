@@ -50,6 +50,8 @@ namespace tremotesf {
         std::vector<TorrentFilesModelEntry*> mFiles{};
 
     private:
+        bool isRootHidden() const;
+
         const std::vector<Column> mColumns;
     };
 }

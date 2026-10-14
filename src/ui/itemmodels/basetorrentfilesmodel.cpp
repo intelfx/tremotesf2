@@ -132,6 +132,13 @@ namespace tremotesf {
 
     QModelIndex BaseTorrentFilesModel::index(int row, int column, const QModelIndex& parent) const {
         if (!parent.isValid()) {
+            if (isRootHidden()) {
+                const auto& children = mRootEntry->children();
+                if (row >= 0 && static_cast<size_t>(row) < children.size()) {
+                    return createIndex(row, column, &children[static_cast<size_t>(row)]);
+                }
+                return {};
+            }
             if (row == 0 && mRootEntry) {
                 return createIndex(0, column, mRootEntry.get());
             }
@@ -150,7 +157,7 @@ namespace tremotesf {
         }
         const auto* const parentDirectoryEntry =
             static_cast<TorrentFilesModelEntry*>(child.internalPointer())->parentDirectory();
-        if (!parentDirectoryEntry) {
+        if (!parentDirectoryEntry || (parentDirectoryEntry == mRootEntry.get() && isRootHidden())) {
             return {};
         }
         return createIndex(parentDirectoryEntry->row(), 0, parentDirectoryEntry);
@@ -163,9 +170,15 @@ namespace tremotesf {
                 return static_cast<int>(entry->children().size());
             }
         } else if (mRootEntry) {
-            return 1;
+            return isRootHidden() ? static_cast<int>(mRootEntry->children().size()) : 1;
         }
         return 0;
+    }
+
+    // Files that don't have a single top-level entry are held by an unnamed root directory,
+    // which isn't shown: its children are the top-level rows instead
+    bool BaseTorrentFilesModel::isRootHidden() const {
+        return mRootEntry && mRootEntry->isDirectory() && mRootEntry->name().isEmpty();
     }
 
     namespace {
@@ -350,7 +363,7 @@ namespace tremotesf {
             updateFile(sIndex, file);
             auto* const parent = file->parentDirectory();
             const auto parentIndex = [&] {
-                if (!parent) {
+                if (!parent || (parent == mRootEntry.get() && isRootHidden())) {
                     return QModelIndex{};
                 }
                 return createIndex(parent->row(), 0, parent);
