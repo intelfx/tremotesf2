@@ -586,6 +586,39 @@ namespace tremotesf {
         }
     }
 
+    void Rpc::renameTorrentFiles(
+        int torrentId, std::vector<std::optional<QString>> filePaths, std::optional<QString> location
+    ) {
+        if (isConnected()) {
+            mBackgroundRequestsCoroutineScope.launch(
+                renameTorrentFilesImpl(torrentId, std::move(filePaths), std::move(location))
+            );
+        }
+    }
+
+    Coroutine<> Rpc::renameTorrentFilesImpl(
+        int torrentId, std::vector<std::optional<QString>> filePaths, std::optional<QString> location
+    ) {
+        QJsonArray filePathsJson{};
+        for (auto& path : filePaths) {
+            filePathsJson.push_back(path ? QJsonValue(std::move(*path)) : QJsonValue(QJsonValue::Null));
+        }
+        QJsonObject arguments{{u"ids"_s, QJsonArray{torrentId}}, {u"file_paths"_s, std::move(filePathsJson)}};
+        if (location) {
+            arguments.insert("location"_L1, std::move(*location));
+        }
+        const auto response = co_await mRequestRouter->postRequest("torrent_rename_files"_L1, std::move(arguments));
+        if (response.success) {
+            mBackgroundRequestsCoroutineScope.launch(updateData());
+        } else {
+            const auto* const torrent = torrentById(torrentId);
+            emit torrentRenameFilesError(
+                torrent ? torrent->data().name : QString::number(torrentId),
+                response.errorString
+            );
+        }
+    }
+
     Coroutine<std::optional<qint64>> Rpc::getDownloadDirFreeSpaceImpl() {
         if (mServerSettings->data().canShowFreeSpaceForPath()) {
             co_return co_await getFreeSpaceForPathImpl(mServerSettings->data().downloadDirectory);

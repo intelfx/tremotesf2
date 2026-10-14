@@ -46,6 +46,7 @@ namespace tremotesf {
         [[nodiscard]] bool hasLabelsProperty() const;
         [[nodiscard]] bool hasProxySettings() const;
         [[nodiscard]] bool canMergeTorrents() const;
+        [[nodiscard]] bool canSetFilePaths() const;
 
         int rpcVersion = 0;
         int minimumRpcVersion = 0;
