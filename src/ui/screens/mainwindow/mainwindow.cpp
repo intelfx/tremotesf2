@@ -320,6 +320,7 @@ namespace tremotesf {
                 &MainWindow::Impl::showDelayedTorrentAddDialog
             );
             showAddTorrentErrors();
+            showTorrentRenameFilesErrors();
 
             auto pasteShortcut = new QShortcut(QKeySequence::Paste, mWindow);
             QObject::connect(
@@ -461,6 +462,7 @@ namespace tremotesf {
         QAction* mNormalPriorityAction{};
         QAction* mLowPriorityAction{};
 
+        QMenu* mTopLevelFolderMenu{};
         QMenu* mMergeMenu{};
         QAction* mMergeStatisticsAction{};
         QAction* mMarkMergeSourceAction{};
@@ -633,6 +635,29 @@ namespace tremotesf {
                     });
                     dialog->show();
                 }
+            });
+
+            mTopLevelFolderMenu = mTorrentMenu->addMenu(
+                //: Torrent's context menu item, submenu that moves the folder holding all of torrent's files
+                qApp->translate("tremotesf", "Top-Level &Folder")
+            );
+
+            const auto* const moveTopLevelFolderIntoLocationAction = mTopLevelFolderMenu->addAction(
+                //: Torrent's context menu item, makes the folder holding all of torrent's files a part of its location
+                qApp->translate("tremotesf", "Move &into Location")
+            );
+            QObject::connect(moveTopLevelFolderIntoLocationAction, &QAction::triggered, this, [this] {
+                const auto indexes = mTorrentsProxyModel.sourceIndexes(mTorrentsView.selectionModel()->selectedRows());
+                mViewModel.rpc()->moveTopLevelFoldersIntoLocations(mTorrentsModel.idsFromIndexes(indexes));
+            });
+
+            const auto* const moveTopLevelFolderOutOfLocationAction = mTopLevelFolderMenu->addAction(
+                //: Torrent's context menu item, makes the last folder of torrent's location the folder holding all of its files
+                qApp->translate("tremotesf", "Move &out of Location")
+            );
+            QObject::connect(moveTopLevelFolderOutOfLocationAction, &QAction::triggered, this, [this] {
+                const auto indexes = mTorrentsProxyModel.sourceIndexes(mTorrentsView.selectionModel()->selectedRows());
+                mViewModel.rpc()->moveLocationFoldersIntoTorrents(mTorrentsModel.idsFromIndexes(indexes));
             });
 
             mRenameTorrentAction = mTorrentMenu->addAction(
@@ -1018,6 +1043,7 @@ namespace tremotesf {
             updateMergeSource();
 
             mMergeMenu->menuAction()->setVisible(mViewModel.rpc()->serverSettings()->data().canMergeTorrents());
+            mTopLevelFolderMenu->menuAction()->setVisible(mViewModel.rpc()->serverSettings()->data().canSetFilePaths());
 
             const auto actions = mTorrentMenu->actions();
 
@@ -1760,6 +1786,29 @@ namespace tremotesf {
                     qApp->translate("tremotesf", "Error adding torrent «%1»").arg(filePathOrUrl)
                 );
             });
+        }
+
+        void showTorrentRenameFilesErrors() {
+            QObject::connect(
+                mViewModel.rpc(),
+                &Rpc::torrentRenameFilesError,
+                this,
+                [this](const QString& torrentName, const QString& errorString) {
+                    auto* const dialog = new QMessageBox(
+                        QMessageBox::Warning,
+                        //: Dialog title
+                        qApp->translate("tremotesf", "Error moving files"),
+                        //: %1 is torrent's name, %2 is the error message
+                        qApp->translate("tremotesf", "Couldn't move files of torrent «%1»: %2")
+                            .arg(torrentName, errorString),
+                        QMessageBox::Close,
+                        mWindow
+                    );
+                    dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+                    dialog->setModal(false);
+                    dialog->show();
+                }
+            );
         }
 
         void showDelayedTorrentAddDialog(const QStringList& torrents, std::optional<QByteArray> windowActivationToken) {
