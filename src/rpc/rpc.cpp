@@ -258,6 +258,7 @@ namespace tremotesf {
         std::vector<int> highPriorityFiles,
         std::vector<int> lowPriorityFiles,
         std::map<QString, QString> renamedFiles,
+        std::vector<std::optional<QString>> filePaths,
         TorrentData::Priority bandwidthPriority,
         bool start,
         DeleteFileMode deleteFileMode,
@@ -271,6 +272,7 @@ namespace tremotesf {
                 std::move(highPriorityFiles),
                 std::move(lowPriorityFiles),
                 std::move(renamedFiles),
+                std::move(filePaths),
                 bandwidthPriority,
                 start,
                 deleteFileMode,
@@ -286,6 +288,7 @@ namespace tremotesf {
             const std::vector<int>& unwantedFiles,
             const std::vector<int>& highPriorityFiles,
             const std::vector<int>& lowPriorityFiles,
+            const std::vector<std::optional<QString>>& filePaths,
             TorrentData::Priority bandwidthPriority,
             bool start,
             const std::vector<QString>& labels
@@ -317,6 +320,13 @@ namespace tremotesf {
             if (!labels.empty()) {
                 arguments.insert("labels"_L1, toJsonArray(labels));
             }
+            if (!filePaths.empty()) {
+                QJsonArray filePathsJson{};
+                for (const auto& path : filePaths) {
+                    filePathsJson.push_back(path ? QJsonValue(*path) : QJsonValue(QJsonValue::Null));
+                }
+                arguments.insert("file_paths"_L1, std::move(filePathsJson));
+            }
             return RequestRouter::makeRequestData("torrent-add"_L1, std::move(arguments));
         }
 
@@ -342,6 +352,7 @@ namespace tremotesf {
         std::vector<int> highPriorityFiles,
         std::vector<int> lowPriorityFiles,
         std::map<QString, QString> renamedFiles,
+        std::vector<std::optional<QString>> filePaths,
         TorrentData::Priority bandwidthPriority,
         bool start,
         DeleteFileMode deleteFileMode,
@@ -354,6 +365,7 @@ namespace tremotesf {
             std::move(unwantedFiles),
             std::move(highPriorityFiles),
             std::move(lowPriorityFiles),
+            std::move(filePaths),
             bandwidthPriority,
             start,
             std::move(labels)

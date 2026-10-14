@@ -4,6 +4,8 @@
 
 #include "localtorrentfilesmodel.h"
 
+#include <ranges>
+
 #include "coroutines/threadpool.h"
 #include "ui/itemmodels/torrentfilesmodelentry.h"
 #include "ui/itemmodels/torrentfilestreebuilder.h"
@@ -51,6 +53,8 @@ namespace tremotesf {
             auto [rootEntry, files] = co_await runOnThreadPool(&createTree, std::move(torrentFile));
             mRootEntry = std::move(rootEntry);
             mFiles = std::move(files);
+            mTorrentFilePaths =
+                mFiles | std::views::transform(&TorrentFilesModelEntry::path) | std::ranges::to<std::vector>();
             mLoaded = true;
             endResetModel();
         } catch (const bencode::Error&) {
@@ -92,6 +96,25 @@ namespace tremotesf {
     }
 
     const std::map<QString, QString>& LocalTorrentFilesModel::renamedFiles() const { return mRenamedFiles; }
+
+    std::vector<std::optional<QString>> LocalTorrentFilesModel::filePaths() const {
+        std::vector<std::optional<QString>> paths{};
+        paths.reserve(mFiles.size());
+        bool anyChanged = false;
+        for (const auto& [file, torrentFilePath] : std::views::zip(mFiles, mTorrentFilePaths)) {
+            auto path = file->path();
+            if (path == torrentFilePath) {
+                paths.emplace_back();
+            } else {
+                paths.emplace_back(std::move(path));
+                anyChanged = true;
+            }
+        }
+        if (!anyChanged) {
+            paths.clear();
+        }
+        return paths;
+    }
 
     void LocalTorrentFilesModel::renameFile(const QModelIndex& index, const QString& newName) {
         auto entry = static_cast<TorrentFilesModelEntry*>(index.internalPointer());

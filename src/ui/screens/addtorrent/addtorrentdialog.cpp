@@ -103,13 +103,17 @@ namespace tremotesf {
     void AddTorrentDialog::accept() {
         if (isAddingFile()) {
             if (!checkIfTorrentFileExists()) {
+                // Servers that can set file paths of a new torrent rename its files atomically,
+                // otherwise files are renamed one by one after adding the torrent
+                const bool canSetFilePaths = mRpc->serverSettings()->data().canSetFilePaths();
                 mRpc->addTorrentFile(
                     std::get<FileParams>(mParams).filePath,
                     mAddTorrentParametersWidgets.downloadDirectoryWidget->path(),
                     mFilesModel->unwantedFiles(),
                     mFilesModel->highPriorityFiles(),
                     mFilesModel->lowPriorityFiles(),
-                    mFilesModel->renamedFiles(),
+                    canSetFilePaths ? std::map<QString, QString>{} : mFilesModel->renamedFiles(),
+                    canSetFilePaths ? mFilesModel->filePaths() : std::vector<std::optional<QString>>{},
                     priorityFromComboBoxIndex(mAddTorrentParametersWidgets.priorityComboBox->currentIndex()),
                     mAddTorrentParametersWidgets.startTorrentCheckBox->isChecked(),
                     determineDeleteFileMode(mAddTorrentParametersWidgets),

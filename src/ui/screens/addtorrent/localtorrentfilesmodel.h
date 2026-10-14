@@ -6,6 +6,7 @@
 #define TREMOTESF_LOCALTORRENTFILESMODEL_H
 
 #include <map>
+#include <optional>
 #include <vector>
 
 #include "ui/itemmodels/basetorrentfilesmodel.h"
@@ -33,12 +34,19 @@ namespace tremotesf {
 
         const std::map<QString, QString>& renamedFiles() const;
 
+        /**
+         * Path of each file, or std::nullopt for a file that has the same path as in the torrent file.
+         * Empty if no file's path differs.
+         */
+        std::vector<std::optional<QString>> filePaths() const;
+
         void renameFile(const QModelIndex& index, const QString& newName) override;
 
     private:
         bool mLoaded{};
 
         std::map<QString, QString> mRenamedFiles{};
+        std::vector<QString> mTorrentFilePaths{};
     };
 }
 
