@@ -73,6 +73,8 @@ namespace tremotesf::impl {
         struct Response {
             QJsonObject arguments{};
             bool success{};
+            // Server's description of the failure, if !success
+            QString errorString{};
         };
 
         Coroutine<Response> postRequest(QLatin1String method, QJsonObject arguments);
