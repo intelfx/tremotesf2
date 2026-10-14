@@ -184,6 +184,10 @@ namespace tremotesf {
         void renameTorrentFiles(
             int torrentId, std::vector<std::optional<QString>> filePaths, std::optional<QString> location
         );
+        // Moves the top-level folder of each torrent's files into the torrent's location
+        void moveTopLevelFoldersIntoLocations(std::span<const int> ids);
+        // Moves the last folder of each torrent's location into the torrent, as its top-level folder
+        void moveLocationFoldersIntoTorrents(std::span<const int> ids);
 
         Coroutine<std::optional<qint64>> getFreeSpaceForPath(QString path);
 
@@ -224,6 +228,8 @@ namespace tremotesf {
         Coroutine<> renameTorrentFilesImpl(
             int torrentId, std::vector<std::optional<QString>> filePaths, std::optional<QString> location
         );
+        enum class FilesLayoutChange { TopLevelFolderIntoLocation, LocationFolderIntoTorrent };
+        Coroutine<> changeTorrentsFilesLayout(QJsonArray ids, FilesLayoutChange change);
         Coroutine<std::optional<qint64>> getDownloadDirFreeSpaceImpl();
         Coroutine<std::optional<qint64>> getDownloadDirFreeSpaceLegacyMethod();
         Coroutine<std::optional<qint64>> getFreeSpaceForPathImpl(QString path);

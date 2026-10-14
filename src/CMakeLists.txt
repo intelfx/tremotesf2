@@ -58,6 +58,7 @@ target_sources(tremotesf_objects
     rpc/serverstats.cpp
     rpc/torrent.cpp
     rpc/torrentfile.cpp
+    rpc/torrentfilepaths.cpp
     rpc/tracker.cpp
 
     startup/commandlineparser.cpp
@@ -166,6 +167,7 @@ target_sources(tremotesf_objects
     rpc/serverstats.h
     rpc/torrent.h
     rpc/torrentfile.h
+    rpc/torrentfilepaths.h
     rpc/tracker.h
 
     startup/commandlineparser.h
@@ -471,6 +473,10 @@ if (BUILD_TESTING)
     add_executable(pathutils_test rpc/pathutils_test.cpp)
     add_test(NAME pathutils_test COMMAND pathutils_test)
     target_link_libraries(pathutils_test PRIVATE tremotesf_objects Qt::Test)
+
+    add_executable(torrentfilepaths_test rpc/torrentfilepaths_test.cpp)
+    add_test(NAME torrentfilepaths_test COMMAND torrentfilepaths_test)
+    target_link_libraries(torrentfilepaths_test PRIVATE tremotesf_objects Qt::Test)
 
     add_executable(tracker_test rpc/tracker_test.cpp)
     add_test(NAME tracker_test COMMAND tracker_test)

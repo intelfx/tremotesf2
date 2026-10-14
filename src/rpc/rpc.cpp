@@ -4,6 +4,10 @@
 
 #include "rpc.h"
 
+#include <iterator>
+#include <ranges>
+#include <stdexcept>
+
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -22,10 +26,12 @@
 #include "jsonutils.h"
 #include "itemlistupdater.h"
 #include "log/log.h"
+#include "pathutils.h"
 #include "requestrouter.h"
 #include "serversettings.h"
 #include "serverstats.h"
 #include "torrent.h"
+#include "torrentfilepaths.h"
 
 using namespace Qt::StringLiterals;
 
@@ -616,6 +622,69 @@ namespace tremotesf {
                 torrent ? torrent->data().name : QString::number(torrentId),
                 response.errorString
             );
+        }
+    }
+
+    void Rpc::moveTopLevelFoldersIntoLocations(std::span<const int> ids) {
+        if (isConnected()) {
+            mBackgroundRequestsCoroutineScope.launch(
+                changeTorrentsFilesLayout(toJsonArray(ids), FilesLayoutChange::TopLevelFolderIntoLocation)
+            );
+        }
+    }
+
+    void Rpc::moveLocationFoldersIntoTorrents(std::span<const int> ids) {
+        if (isConnected()) {
+            mBackgroundRequestsCoroutineScope.launch(
+                changeTorrentsFilesLayout(toJsonArray(ids), FilesLayoutChange::LocationFolderIntoTorrent)
+            );
+        }
+    }
+
+    Coroutine<> Rpc::changeTorrentsFilesLayout(QJsonArray ids, FilesLayoutChange change) {
+        QJsonObject arguments{
+            {u"fields"_s, QJsonArray{"id"_L1, "name"_L1, "downloadDir"_L1, "files"_L1}},
+            {u"ids"_s, std::move(ids)}
+        };
+        const auto response = co_await mRequestRouter->postRequest("torrent-get"_L1, std::move(arguments));
+        if (!response.success) co_return;
+        const auto pathOs = mServerSettings->data().pathOs;
+        for (const auto& torrentJson : response.arguments.value(torrentsKey).toArray()) {
+            const auto object = torrentJson.toObject();
+            const auto id = Torrent::idFromJson(object);
+            if (!id.has_value()) continue;
+            const auto location = normalizePath(object.value("downloadDir"_L1).toString(), pathOs);
+            const auto filePaths = object.value("files"_L1).toArray()
+                                   | std::views::transform([](const QJsonValue& file) {
+                                         return file.toObject().value("name"_L1).toString();
+                                     })
+                                   | std::ranges::to<std::vector>();
+            auto layout = [&] {
+                switch (change) {
+                case FilesLayoutChange::TopLevelFolderIntoLocation:
+                    return moveTopLevelFolderIntoLocation(location, filePaths);
+                case FilesLayoutChange::LocationFolderIntoTorrent:
+                    return moveLocationFolderIntoTorrent(location, filePaths, pathOs);
+                }
+                throw std::logic_error("Unknown FilesLayoutChange value");
+            }();
+            if (!layout.has_value()) {
+                emit torrentRenameFilesError(
+                    object.value("name"_L1).toString(),
+                    change == FilesLayoutChange::TopLevelFolderIntoLocation
+                        ? qApp->translate("tremotesf", "Torrent's files are not in a single top-level folder")
+                        : qApp->translate("tremotesf", "Torrent's location has no parent folder")
+                );
+                continue;
+            }
+            mBackgroundRequestsCoroutineScope.launch(renameTorrentFilesImpl(
+                *id,
+                std::vector<std::optional<QString>>(
+                    std::make_move_iterator(layout->filePaths.begin()),
+                    std::make_move_iterator(layout->filePaths.end())
+                ),
+                std::move(layout->location)
+            ));
         }
     }
 
