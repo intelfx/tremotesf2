@@ -61,6 +61,8 @@ namespace tremotesf {
             endResetModel();
             if (mContentLayout != Settings::TorrentContentLayout::Original) {
                 layOutFiles();
+            } else {
+                emit filePathsChanged();
             }
         } catch (const bencode::Error&) {
             endResetModel();
@@ -136,6 +138,7 @@ namespace tremotesf {
     void LocalTorrentFilesModel::applyFilePaths(std::span<const QString> paths) {
         mRenamedFiles.clear();
         if (renameEntries(paths)) {
+            emit filePathsChanged();
             return;
         }
 
@@ -160,11 +163,13 @@ namespace tremotesf {
         mRootEntry = std::move(builder.rootEntry);
         mFiles = std::move(builder.files);
         endResetModel();
+        emit filePathsChanged();
     }
 
     void LocalTorrentFilesModel::renameFile(const QModelIndex& index, const QString& newName) {
         auto entry = static_cast<TorrentFilesModelEntry*>(index.internalPointer());
         mRenamedFiles.emplace(entry->path(), newName);
         fileRenamed(entry, newName);
+        emit filePathsChanged();
     }
 }

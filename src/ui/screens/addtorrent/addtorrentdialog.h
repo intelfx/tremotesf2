@@ -34,6 +34,7 @@ namespace tremotesf {
     class LocalTorrentFilesModel;
     class TorrentDownloadDirectoryDirectorySelectionWidget;
     class TorrentFilesView;
+    class TorrentNameEdit;
     class Rpc;
 
     class AddTorrentDialog final : public QDialog {
@@ -78,6 +79,7 @@ namespace tremotesf {
         void setupUi();
         void updateUi();
         void updateContentLayout();
+        void updateNameEdit();
         void canAcceptUpdate();
         void saveState();
 
@@ -103,6 +105,7 @@ namespace tremotesf {
         QLineEdit* mTorrentFilePathTextField{};
         QPlainTextEdit* mTorrentLinkTextField{};
         QLabel* mFreeSpaceLabel{};
+        TorrentNameEdit* mNameEdit{};
         TorrentFilesView* mTorrentFilesView{};
         AddTorrentParametersWidgets mAddTorrentParametersWidgets{};
         QGroupBox* mEditLabelsGroupBox{};

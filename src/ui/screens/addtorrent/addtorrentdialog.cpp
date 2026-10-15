@@ -42,6 +42,7 @@
 #include "ui/widgets/editlabelswidget.h"
 #include "ui/widgets/torrentremotedirectoryselectionwidget.h"
 #include "ui/widgets/torrentfilesview.h"
+#include "ui/widgets/torrentnameedit.h"
 
 #include "localtorrentfilesmodel.h"
 
@@ -297,8 +298,20 @@ namespace tremotesf {
         );
 
         if (isAddingFile()) {
+            mNameEdit = new TorrentNameEdit(mFilesModel, this);
+            layout->insertRow(
+                rowForWidget(layout, mFreeSpaceLabel) + 1,
+                //: Input field's label, name of torrent's top-level folder or file, which renames them
+                qApp->translate("tremotesf", "Name:"),
+                mNameEdit
+            );
+            QObject::connect(mNameEdit, &TorrentNameEdit::stateChanged, this, [this] {
+                updateNameEdit();
+                canAcceptUpdate();
+            });
+
             mTorrentFilesView = new TorrentFilesView(mFilesModel, mRpc);
-            layout->insertRow(rowForWidget(layout, mFreeSpaceLabel) + 1, mTorrentFilesView);
+            layout->insertRow(rowForWidget(layout, mNameEdit) + 1, mTorrentFilesView);
             QObject::connect(
                 mAddTorrentParametersWidgets.contentLayoutComboBox,
                 &QComboBox::currentIndexChanged,
@@ -358,6 +371,10 @@ namespace tremotesf {
 
         mAddTorrentParametersWidgets.startTorrentCheckBox->setEnabled(enabled);
 
+        if (mNameEdit) {
+            updateNameEdit();
+        }
+
         if (enabled) {
             if (mMessageWidget->isShowAnimationRunning()) {
                 mMessageWidget->hide();
@@ -400,12 +417,23 @@ namespace tremotesf {
         }
     }
 
+    void AddTorrentDialog::updateNameEdit() {
+        // Name renames files, so it is shown only if the server can set file paths of added torrents
+        const bool visible = !mRpc->isConnected() || mRpc->serverSettings()->data().canSetFilePaths();
+        mNameEdit->setVisible(visible);
+        static_cast<QFormLayout*>(layout())->labelForField(mNameEdit)->setVisible(visible);
+        mNameEdit->setEnabled(mRpc->isConnected() && mFilesModel->isLoaded() && mNameEdit->hasTitle());
+    }
+
     void AddTorrentDialog::canAcceptUpdate() {
         bool can = mRpc->isConnected() && (mFilesModel ? mFilesModel->isLoaded() : true);
         if (mTorrentLinkTextField && mTorrentLinkTextField->document()->isEmpty()) {
             can = false;
         }
         if (mAddTorrentParametersWidgets.downloadDirectoryWidget->path().isEmpty()) {
+            can = false;
+        }
+        if (mNameEdit && !mNameEdit->isHidden() && mNameEdit->hasError()) {
             can = false;
         }
         mDialogButtonBox->button(QDialogButtonBox::Ok)->setEnabled(can);

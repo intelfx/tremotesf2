@@ -112,6 +112,7 @@ target_sources(tremotesf_objects
     ui/widgets/textinputdialog.cpp
     ui/widgets/tooltipwhenelideddelegate.cpp
     ui/widgets/torrentfilesview.cpp
+    ui/widgets/torrentnameedit.cpp
     ui/widgets/torrentremotedirectoryselectionwidget.cpp
 
     resources.qrc
@@ -226,6 +227,7 @@ target_sources(tremotesf_objects
     ui/widgets/textinputdialog.h
     ui/widgets/tooltipwhenelideddelegate.h
     ui/widgets/torrentfilesview.h
+    ui/widgets/torrentnameedit.h
     ui/widgets/torrentremotedirectoryselectionwidget.h
 )
 

@@ -60,6 +60,10 @@ namespace tremotesf {
 
         std::map<QString, QString> mRenamedFiles{};
         std::vector<QString> mTorrentFilePaths{};
+
+    signals:
+        // Files were loaded, or got new paths
+        void filePathsChanged();
     };
 }
 
