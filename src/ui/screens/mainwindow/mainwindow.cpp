@@ -56,6 +56,7 @@
 #include "ui/screens/addtorrent/addtorrenthelpers.h"
 #include "ui/screens/connectionsettings/servereditdialog.h"
 #include "ui/screens/connectionsettings/connectionsettingsdialog.h"
+#include "ui/screens/renametorrentfilesdialog.h"
 #include "ui/screens/serversettings/serversettingsdialog.h"
 #include "ui/screens/serverstatsdialog.h"
 #include "ui/screens/settingsdialog.h"
@@ -454,6 +455,7 @@ namespace tremotesf {
         QAction* mRemoveTorrentAction{};
 
         QAction* mRenameTorrentAction{};
+        QAction* mRenameTorrentAndFilesAction{};
 
         QAction* mOpenTorrentFilesAction{};
         QAction* mOpenTorrentDownloadDirectoryAction{};
@@ -676,6 +678,22 @@ namespace tremotesf {
                     TorrentFilesView::showFileRenameDialog(name, mWindow, [id, name, this](const auto& newName) {
                         mViewModel.rpc()->renameTorrentFile(id, name, newName);
                     });
+                }
+            });
+
+            mRenameTorrentAndFilesAction = mTorrentMenu->addAction(
+                QIcon::fromTheme("edit-rename"_L1),
+                //: Torrent's context menu item, opens a dialog that renames and moves torrent's files
+                qApp->translate("tremotesf", "Rename Torrent and &Files...")
+            );
+            QObject::connect(mRenameTorrentAndFilesAction, &QAction::triggered, this, [this] {
+                const auto indexes = mTorrentsView.selectionModel()->selectedRows();
+                if (indexes.size() == 1) {
+                    const auto torrent =
+                        mTorrentsModel.torrentAtIndex(mTorrentsProxyModel.mapToSource(indexes.first()));
+                    auto* const dialog = new RenameTorrentFilesDialog(torrent, mViewModel.rpc(), mWindow);
+                    dialog->setAttribute(Qt::WA_DeleteOnClose);
+                    dialog->show();
                 }
             });
 
@@ -1044,6 +1062,7 @@ namespace tremotesf {
 
             mMergeMenu->menuAction()->setVisible(mViewModel.rpc()->serverSettings()->data().canMergeTorrents());
             mTopLevelFolderMenu->menuAction()->setVisible(mViewModel.rpc()->serverSettings()->data().canSetFilePaths());
+            mRenameTorrentAndFilesAction->setVisible(mViewModel.rpc()->serverSettings()->data().canSetFilePaths());
 
             const auto actions = mTorrentMenu->actions();
 
@@ -1084,6 +1103,7 @@ namespace tremotesf {
                 }
             } else {
                 mRenameTorrentAction->setEnabled(false);
+                mRenameTorrentAndFilesAction->setEnabled(false);
             }
 
             mMergeStatisticsAction->setEnabled(selectedRows.size() == 2);

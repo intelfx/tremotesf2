@@ -19,6 +19,9 @@ namespace tremotesf {
 
         Settings::TorrentContentLayout contentLayout() const;
         void setContentLayout(Settings::TorrentContentLayout layout);
+
+        // Sets text of the item that keeps torrent's files where they are, which is "Original" by default
+        void setOriginalLayoutText(const QString& text);
     };
 }
 

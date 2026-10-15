@@ -189,6 +189,8 @@ namespace tremotesf {
         void moveTopLevelFoldersIntoLocations(std::span<const int> ids);
         // Moves the last folder of each torrent's location into the torrent, as its top-level folder
         void moveLocationFoldersIntoTorrents(std::span<const int> ids);
+        // Files of the torrent, or std::nullopt if they couldn't be fetched
+        Coroutine<std::optional<std::vector<TorrentFile>>> fetchTorrentFiles(int torrentId);
 
         Coroutine<std::optional<qint64>> getFreeSpaceForPath(QString path);
 

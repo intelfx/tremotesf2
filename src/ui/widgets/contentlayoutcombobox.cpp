@@ -50,4 +50,12 @@ namespace tremotesf {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         setCurrentIndex(indexOfCasted<int>(contentLayoutComboBoxItems, layout).value());
     }
+
+    void ContentLayoutComboBox::setOriginalLayoutText(const QString& text) {
+        setItemText(
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            indexOfCasted<int>(contentLayoutComboBoxItems, Settings::TorrentContentLayout::Original).value(),
+            text
+        );
+    }
 }
