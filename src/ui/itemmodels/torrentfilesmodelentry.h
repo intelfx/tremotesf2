@@ -33,7 +33,7 @@ namespace tremotesf {
         inline void setParentDirectory(TorrentFilesModelEntry* directory) { mParentDirectory = directory; }
 
         inline QString name() const { return mName; }
-        inline void setName(const QString& name) { mName = name; }
+        void setName(const QString& name);
 
         QString path() const;
 

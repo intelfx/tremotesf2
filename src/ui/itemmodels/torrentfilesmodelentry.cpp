@@ -36,6 +36,14 @@ namespace tremotesf {
         }
     }
 
+    void TorrentFilesModelEntry::setName(const QString& name) {
+        mName = name;
+        if (auto* const data = std::get_if<FileData>(&mFileOrDirectoryData); data) {
+            // File's icon depends on its name
+            data->initializedIcon = false;
+        }
+    }
+
     QString TorrentFilesModelEntry::path() const {
         QString path(mName);
         const auto* parent = mParentDirectory;
