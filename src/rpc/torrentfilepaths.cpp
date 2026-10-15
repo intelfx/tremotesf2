@@ -51,6 +51,11 @@ namespace tremotesf {
 
     QString parentFolder(const QString& path) { return path.first(std::max(path.lastIndexOf(u'/'), qsizetype{0})); }
 
+    QString fileNameWithoutExtension(const QString& fileName) {
+        const auto extension = fileName.lastIndexOf(u'.');
+        return extension > 0 ? fileName.first(extension) : fileName;
+    }
+
     std::optional<FilePathsError> checkFilePaths(std::span<const QString> filePaths) {
         QSet<QStringView> paths{};
         paths.reserve(static_cast<qsizetype>(filePaths.size()));
@@ -172,9 +177,7 @@ namespace tremotesf {
             return std::nullopt;
         }
         const auto& fileName = filePaths.front();
-        const auto extension = fileName.lastIndexOf(u'.');
-        const auto folder = extension > 0 ? fileName.first(extension) : fileName;
-        return std::vector{folder + u'/' + fileName};
+        return std::vector{fileNameWithoutExtension(fileName) + u'/' + fileName};
     }
 
     std::optional<TorrentFilesLayout>

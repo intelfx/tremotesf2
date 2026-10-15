@@ -40,6 +40,8 @@ namespace tremotesf {
     QString entryName(const QString& path);
     // Folder that holds a file or a folder, or an empty string for the top level
     QString parentFolder(const QString& path);
+    // File name without its last extension, e.g. "archive.tar" for "archive.tar.gz". Leading dot doesn't start one.
+    QString fileNameWithoutExtension(const QString& fileName);
 
     struct FilePathsError {
         enum class Type {
