@@ -700,6 +700,30 @@ namespace tremotesf {
         }
     }
 
+    Coroutine<std::optional<std::vector<TorrentFile>>> Rpc::fetchTorrentFiles(int torrentId) {
+        if (!isConnected()) {
+            co_return std::nullopt;
+        }
+        QJsonObject arguments{
+            {u"fields"_s, QJsonArray{"id"_L1, "files"_L1, "fileStats"_L1}},
+            {u"ids"_s, QJsonArray{torrentId}}
+        };
+        const auto response = co_await mRequestRouter->postRequest("torrent-get"_L1, std::move(arguments));
+        const auto torrents = response.arguments.value(torrentsKey).toArray();
+        if (!response.success || torrents.isEmpty()) {
+            co_return std::nullopt;
+        }
+        const auto object = torrents.first().toObject();
+        const auto files = object.value("files"_L1).toArray();
+        const auto fileStats = object.value("fileStats"_L1).toArray();
+        if (files.size() != fileStats.size()) {
+            co_return std::nullopt;
+        }
+        co_return std::views::zip(files, fileStats) | std::views::transform([](const auto& file) {
+            return TorrentFile(std::get<0>(file).toObject(), std::get<1>(file).toObject());
+        }) | std::ranges::to<std::vector>();
+    }
+
     Coroutine<std::optional<qint64>> Rpc::getDownloadDirFreeSpaceImpl() {
         if (mServerSettings->data().canShowFreeSpaceForPath()) {
             co_return co_await getFreeSpaceForPathImpl(mServerSettings->data().downloadDirectory);

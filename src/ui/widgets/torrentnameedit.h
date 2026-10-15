@@ -29,6 +29,9 @@ namespace tremotesf {
         // Whether the text is not a name that the files can get, in which case they keep their paths
         bool hasError() const;
 
+        // Renames the files after the text, as editing it does
+        void renameFiles();
+
     private:
         void reset();
         void onTextEdited(const QString& name);

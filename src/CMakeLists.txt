@@ -93,6 +93,7 @@ target_sources(tremotesf_objects
     ui/screens/mainwindow/torrentsmodel.cpp
     ui/screens/mainwindow/torrentsproxymodel.cpp
     ui/screens/mainwindow/torrentsview.cpp
+    ui/screens/renametorrentfilesdialog.cpp
     ui/screens/serversettings/serversettingsdialog.cpp
     ui/screens/serverstatsdialog.cpp
     ui/screens/settingsdialog.cpp
@@ -208,6 +209,7 @@ target_sources(tremotesf_objects
     ui/screens/mainwindow/torrentsmodel.h
     ui/screens/mainwindow/torrentsproxymodel.h
     ui/screens/mainwindow/torrentsview.h
+    ui/screens/renametorrentfilesdialog.h
     ui/screens/serversettings/serversettingsdialog.h
     ui/screens/serverstatsdialog.h
     ui/screens/settingsdialog.h

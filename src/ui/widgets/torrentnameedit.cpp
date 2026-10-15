@@ -27,6 +27,12 @@ namespace tremotesf {
 
     bool TorrentNameEdit::hasError() const { return mErrorAction->isVisible(); }
 
+    void TorrentNameEdit::renameFiles() {
+        if (mHasTitle) {
+            onTextEdited(text());
+        }
+    }
+
     void TorrentNameEdit::reset() {
         if (mRenamingFiles) {
             return;
