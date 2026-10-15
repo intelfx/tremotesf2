@@ -17,6 +17,7 @@
 #include <QItemSelectionModel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QScrollBar>
 
 #include "rpc/mounteddirectoriesutils.h"
@@ -378,6 +379,8 @@ namespace tremotesf {
             }
         }
 
+        addFlattenAndExtractActions(contextMenu, sourceIndexes);
+
         if (mRpc->serverSettings()->data().canRenameFiles()) {
             contextMenu.addSeparator();
             QAction* renameAction = contextMenu.addAction(
@@ -398,6 +401,80 @@ namespace tremotesf {
         addMoveAction(contextMenu, sourceIndexes);
 
         contextMenu.exec(viewport()->mapToGlobal(pos));
+    }
+
+    void TorrentFilesView::addFlattenAndExtractActions(QMenu& menu, const QModelIndexList& sourceIndexes) {
+        if (!canSetFilePaths()) {
+            return;
+        }
+        menu.addSeparator();
+
+        QAction* flattenAction = menu.addAction(
+            QIcon::fromTheme("format-indent-less"_L1),
+            //: Context menu item, moves everything in selected folders out of them, removing the folders
+            qApp->translate("tremotesf", "&Flatten")
+        );
+        flattenAction->setEnabled(std::ranges::all_of(sourceIndexes, [](const QModelIndex& index) {
+            return static_cast<const TorrentFilesModelEntry*>(index.internalPointer())->isDirectory();
+        }));
+        QObject::connect(flattenAction, &QAction::triggered, this, [=, this] {
+            const auto folders =
+                sourceIndexes
+                | std::views::transform([](const QModelIndex& index) {
+                      return static_cast<const TorrentFilesModelEntry*>(index.internalPointer())->path();
+                  })
+                | std::ranges::to<std::vector>();
+            const auto filePaths = mModel->currentFilePaths();
+            auto moves = flattenFolders(filePaths, folders);
+            if (const auto error = checkFilePaths(applyPathMoves(filePaths, moves)); error) {
+                auto* const messageBox = new QMessageBox(
+                    QMessageBox::Warning,
+                    //: Dialog title
+                    qApp->translate("tremotesf", "Can't flatten folders"),
+                    filePathsErrorString(*error),
+                    QMessageBox::Close,
+                    this
+                );
+                messageBox->setAttribute(Qt::WA_DeleteOnClose);
+                messageBox->show();
+                return;
+            }
+            moveEntries(std::move(moves));
+        });
+
+        const auto entries = selectedEntries(sourceIndexes);
+        QAction* extractAction = menu.addAction(
+            QIcon::fromTheme("folder-new"_L1),
+            //: Context menu item, moves selected files and folders into a new folder
+            qApp->translate("tremotesf", "E&xtract into Subfolder...")
+        );
+        extractAction->setEnabled(std::ranges::all_of(entries, [&](const QString& path) {
+            return parentFolder(path) == parentFolder(entries.front());
+        }));
+        QObject::connect(extractAction, &QAction::triggered, this, [=, this] {
+            const auto movesFor = [=](const QString& folderName) {
+                return extractIntoFolder(entries, folderName).value_or(std::vector<PathMove>{});
+            };
+            const bool singleFile =
+                entries.size() == 1
+                && !static_cast<const TorrentFilesModelEntry*>(sourceIndexes.first().internalPointer())->isDirectory();
+            auto* const dialog = new TextInputDialog(
+                //: Dialog title
+                qApp->translate("tremotesf", "Extract into Subfolder"),
+                qApp->translate("tremotesf", "Subfolder name:"),
+                singleFile ? fileNameWithoutExtension(entryName(entries.front())) : QString{},
+                //: Dialog confirmation button
+                qApp->translate("tremotesf", "Extract"),
+                false,
+                this
+            );
+            dialog->setCheck([check = checkMoves(movesFor)](const QString& folderName) {
+                return folderName.isEmpty() ? TextInputDialog::CheckResult{.acceptable = false} : check(folderName);
+            });
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            QObject::connect(dialog, &QDialog::accepted, this, [=, this] { moveEntries(movesFor(dialog->text())); });
+            dialog->show();
+        });
     }
 
     bool TorrentFilesView::canSetFilePaths() const {

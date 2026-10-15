@@ -34,6 +34,8 @@ set(icon_files_to_bundle
     edit-select-all.svg
     edit-select-invert.svg
     folder-download.svg
+    folder-new.svg
+    format-indent-less.svg
     go-bottom.svg
     go-down.svg
     go-jump.svg

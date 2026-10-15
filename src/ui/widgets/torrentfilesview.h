@@ -61,6 +61,7 @@ namespace tremotesf {
         void moveEntries(std::vector<PathMove> moves);
         // Check for a dialog whose text makes moves of torrent's files and folders
         TextInputDialog::Check checkMoves(std::function<std::vector<PathMove>(const QString&)> movesForText) const;
+        void addFlattenAndExtractActions(QMenu& menu, const QModelIndexList& sourceIndexes);
 
         std::optional<int> torrentId() const;
         QString entryPath(const QModelIndex& index) const;

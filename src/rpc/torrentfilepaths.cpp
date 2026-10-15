@@ -180,6 +180,62 @@ namespace tremotesf {
         return std::vector{fileNameWithoutExtension(fileName) + u'/' + fileName};
     }
 
+    std::vector<PathMove> flattenFolders(std::span<const QString> filePaths, std::span<const QString> folders) {
+        const auto flattened = folders | std::ranges::to<QSet<QString>>();
+        // Path without the flattened folders
+        const auto flattenedPath = [&](const QString& path) {
+            QString result{};
+            for (qsizetype start = 0; start <= path.size();) {
+                auto end = path.indexOf(u'/', start);
+                if (end == -1) {
+                    end = path.size();
+                }
+                if (!flattened.contains(path.first(end))) {
+                    if (!result.isEmpty()) {
+                        result += u'/';
+                    }
+                    result += QStringView(path).sliced(start, end - start);
+                }
+                start = end + 1;
+            }
+            return result;
+        };
+        // Entries that are directly in flattened folders move with everything in them
+        std::vector<PathMove> moves{};
+        QSet<QString> movedEntries{};
+        for (const QString& path : filePaths) {
+            for (const QStringView folder : parentFolders(path)) {
+                if (!flattened.contains(folder.toString())) {
+                    continue;
+                }
+                const auto end = path.indexOf(u'/', folder.size() + 1);
+                QString entry = end == -1 ? path : path.first(end);
+                if (!flattened.contains(entry) && !movedEntries.contains(entry)) {
+                    movedEntries.insert(entry);
+                    moves.push_back({.from = entry, .to = flattenedPath(entry)});
+                }
+            }
+        }
+        return moves;
+    }
+
+    std::optional<std::vector<PathMove>>
+    extractIntoFolder(std::span<const QString> entryPaths, const QString& folderName) {
+        if (entryPaths.empty()) {
+            return std::nullopt;
+        }
+        const QString parent = parentFolder(entryPaths.front());
+        if (!std::ranges::all_of(entryPaths, [&](const QString& path) { return parentFolder(path) == parent; })) {
+            return std::nullopt;
+        }
+        const QString prefix = (parent.isEmpty() ? folderName : parent + u'/' + folderName) + u'/';
+        return entryPaths
+               | std::views::transform([&](const QString& path) {
+                     return PathMove{.from = path, .to = prefix + entryName(path)};
+                 })
+               | std::ranges::to<std::vector>();
+    }
+
     std::optional<TorrentFilesLayout>
     moveTopLevelFolderIntoLocation(const QString& location, std::span<const QString> filePaths) {
         auto paths = removeTopLevelFolder(filePaths);

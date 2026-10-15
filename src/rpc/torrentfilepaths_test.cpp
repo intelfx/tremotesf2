@@ -133,6 +133,40 @@ private slots:
         QCOMPARE(addTopLevelFolder(Paths{u"1.flac"_s, u"2.flac"_s}), std::nullopt);
     }
 
+    void checkFlattenFolders() {
+        const Paths paths{u"A/B/C/1"_s, u"A/B/C/D/2"_s, u"A/B/3"_s, u"A/4"_s};
+        QCOMPARE(
+            flattenFolders(paths, Paths{u"A/B/C"_s}),
+            (std::vector{
+                PathMove{.from = u"A/B/C/1"_s, .to = u"A/B/1"_s},
+                PathMove{.from = u"A/B/C/D"_s, .to = u"A/B/D"_s}
+            })
+        );
+        QCOMPARE(
+            applyPathMoves(paths, flattenFolders(paths, Paths{u"A/B/C"_s, u"A/B"_s})),
+            (Paths{u"A/1"_s, u"A/D/2"_s, u"A/3"_s, u"A/4"_s})
+        );
+        QCOMPARE(
+            applyPathMoves(paths, flattenFolders(paths, Paths{u"A"_s})),
+            (Paths{u"B/C/1"_s, u"B/C/D/2"_s, u"B/3"_s, u"4"_s})
+        );
+        QCOMPARE(applyPathMoves(paths, flattenFolders(paths, Paths{u"A"_s})), removeTopLevelFolder(paths).value());
+    }
+
+    void checkExtractIntoFolder() {
+        QCOMPARE(
+            extractIntoFolder(Paths{u"A/1"_s, u"A/B"_s}, u"C"_s),
+            (std::vector{PathMove{.from = u"A/1"_s, .to = u"A/C/1"_s}, PathMove{.from = u"A/B"_s, .to = u"A/C/B"_s}})
+        );
+        QCOMPARE(
+            extractIntoFolder(Paths{u"Movie.mkv"_s}, u"Movie"_s),
+            (std::vector{PathMove{.from = u"Movie.mkv"_s, .to = u"Movie/Movie.mkv"_s}})
+        );
+        QCOMPARE(extractIntoFolder(Paths{u"A/1"_s, u"B/2"_s}, u"C"_s), std::nullopt);
+        QCOMPARE(extractIntoFolder(Paths{u"A/1"_s, u"2"_s}, u"C"_s), std::nullopt);
+        QCOMPARE(extractIntoFolder(Paths{}, u"C"_s), std::nullopt);
+    }
+
     void checkMoveTopLevelFolderIntoLocation() {
         QCOMPARE(
             moveTopLevelFolderIntoLocation(u"/music"_s, Paths{u"Album/1.flac"_s, u"Album/CD2/2.flac"_s}),

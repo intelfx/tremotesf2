@@ -106,6 +106,20 @@ namespace tremotesf {
     std::optional<std::vector<QString>> addTopLevelFolder(std::span<const QString> filePaths);
 
     /**
+     * Dissolves folders: everything that is in them goes into their parent folders, e.g. "A/B/1" and "A/B/C/2"
+     * become "A/1" and "A/C/2" when flattening "A/B". Folders that are inside other flattened folders
+     * are dissolved as well.
+     */
+    std::vector<PathMove> flattenFolders(std::span<const QString> filePaths, std::span<const QString> folders);
+
+    /**
+     * Moves files and folders into a new subfolder of the folder that holds them, keeping their names
+     * @return std::nullopt if they are not in the same folder
+     */
+    std::optional<std::vector<PathMove>>
+    extractIntoFolder(std::span<const QString> entryPaths, const QString& folderName);
+
+    /**
      * Moves the top-level folder of torrent's files into its location, e.g. turns location "/music"
      * with files "Album/1.flac" and "Album/2.flac" into location "/music/Album" with files "1.flac" and "2.flac".
      * @param location Normalized location
