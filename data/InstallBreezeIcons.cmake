@@ -29,6 +29,7 @@ set(icon_files_to_bundle
     edit-copy.svg
     edit-delete.svg
     edit-delete.svg
+    edit-move.svg
     edit-rename.svg
     edit-select-all.svg
     edit-select-invert.svg

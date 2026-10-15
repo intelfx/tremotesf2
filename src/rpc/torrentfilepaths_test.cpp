@@ -61,6 +61,50 @@ private slots:
         );
     }
 
+    void checkCommonFolder() {
+        QCOMPARE(commonFolder(Paths{u"A/B/1"_s, u"A/C"_s}), u"A"_s);
+        QCOMPARE(commonFolder(Paths{u"A/B/1"_s, u"A/B/2"_s}), u"A/B"_s);
+        QCOMPARE(commonFolder(Paths{u"A/B"_s}), u"A"_s);
+        QCOMPARE(commonFolder(Paths{u"AB/1"_s, u"A/2"_s}), QString{});
+        QCOMPARE(commonFolder(Paths{u"A/1"_s, u"B"_s}), QString{});
+        QCOMPARE(commonFolder(Paths{}), QString{});
+    }
+
+    void checkMoveEntry() {
+        QCOMPARE(moveEntry(u"A/1"_s, u"B/one"_s), (PathMove{.from = u"A/1"_s, .to = u"B/one"_s}));
+        QCOMPARE(moveEntry(u"A/1"_s, u"B/"_s), (PathMove{.from = u"A/1"_s, .to = u"B/1"_s}));
+
+        // A folder moved onto its parent goes away, like when flattening it
+        const Paths paths{u"A/B/C/1"_s, u"A/B/C/D/2"_s, u"A/B/3"_s};
+        QCOMPARE(
+            applyPathMoves(paths, std::vector{moveEntry(u"A/B/C"_s, u"A/B"_s)}),
+            (Paths{u"A/B/1"_s, u"A/B/D/2"_s, u"A/B/3"_s})
+        );
+        // With "/", it stays where it is
+        QCOMPARE(applyPathMoves(paths, std::vector{moveEntry(u"A/B/C"_s, u"A/B/"_s)}), paths);
+        // A folder moved into itself
+        QCOMPARE(
+            applyPathMoves(paths, std::vector{moveEntry(u"A/B/C"_s, u"A/B/C/E"_s)}),
+            (Paths{u"A/B/C/E/1"_s, u"A/B/C/E/D/2"_s, u"A/B/3"_s})
+        );
+    }
+
+    void checkMoveEntriesIntoFolder() {
+        const Paths entries{u"A/1"_s, u"B"_s};
+        QCOMPARE(
+            moveEntriesIntoFolder(entries, u"C/D"_s),
+            (std::vector{PathMove{.from = u"A/1"_s, .to = u"C/D/1"_s}, PathMove{.from = u"B"_s, .to = u"C/D/B"_s}})
+        );
+        QCOMPARE(
+            moveEntriesIntoFolder(entries, u"C/"_s),
+            (std::vector{PathMove{.from = u"A/1"_s, .to = u"C/1"_s}, PathMove{.from = u"B"_s, .to = u"C/B"_s}})
+        );
+        QCOMPARE(
+            moveEntriesIntoFolder(entries, QString{}),
+            (std::vector{PathMove{.from = u"A/1"_s, .to = u"1"_s}, PathMove{.from = u"B"_s, .to = u"B"_s}})
+        );
+    }
+
     void checkChangedFilePaths() {
         using ChangedPaths = std::vector<std::optional<QString>>;
         QCOMPARE(

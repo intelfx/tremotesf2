@@ -103,6 +103,32 @@ namespace tremotesf {
         return topmost;
     }
 
+    QString commonFolder(std::span<const QString> entryPaths) {
+        if (entryPaths.empty()) {
+            return {};
+        }
+        QString folder = parentFolder(entryPaths.front());
+        for (const QString& path : entryPaths.subspan(1)) {
+            while (!folder.isEmpty() && !path.startsWith(folder + u'/')) {
+                folder = parentFolder(folder);
+            }
+        }
+        return folder;
+    }
+
+    PathMove moveEntry(const QString& path, const QString& newPath) {
+        return {.from = path, .to = newPath.endsWith(u'/') ? newPath + entryName(path) : newPath};
+    }
+
+    std::vector<PathMove> moveEntriesIntoFolder(std::span<const QString> entryPaths, const QString& folder) {
+        const QString prefix = folder.isEmpty() || folder.endsWith(u'/') ? folder : folder + u'/';
+        return entryPaths
+               | std::views::transform([&](const QString& path) {
+                     return PathMove{.from = path, .to = prefix + entryName(path)};
+                 })
+               | std::ranges::to<std::vector>();
+    }
+
     std::vector<std::optional<QString>>
     changedFilePaths(std::span<const QString> filePaths, std::span<const QString> newFilePaths) {
         std::vector<std::optional<QString>> paths{};

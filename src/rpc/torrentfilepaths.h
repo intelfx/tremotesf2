@@ -67,6 +67,21 @@ namespace tremotesf {
      */
     std::vector<QString> topmostEntries(std::span<const QString> entryPaths);
 
+    // Innermost folder that holds all the entries, or an empty string for the top level
+    QString commonFolder(std::span<const QString> entryPaths);
+
+    /**
+     * Moves an entry to a new path. A new path that ends with "/" is a folder to move the entry into,
+     * keeping its name.
+     */
+    PathMove moveEntry(const QString& path, const QString& newPath);
+
+    /**
+     * Moves entries into a folder, keeping their names
+     * @param folder Folder path, or an empty string for the top level
+     */
+    std::vector<PathMove> moveEntriesIntoFolder(std::span<const QString> entryPaths, const QString& folder);
+
     /**
      * New path of each file, or std::nullopt for a file whose path doesn't change, as servers take them
      * @return Empty if no file's path changes

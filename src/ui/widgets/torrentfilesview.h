@@ -53,6 +53,7 @@ namespace tremotesf {
         void restoreTreeState(const TreeState& state);
         void onModelReset();
         void showContextMenu(QPoint pos);
+        void addMoveAction(QMenu& menu, const QModelIndexList& sourceIndexes);
 
         bool canSetFilePaths() const;
         // Paths of selected files and folders, without those that are inside selected folders

@@ -28,6 +28,8 @@ namespace tremotesf {
             QWidget* parent = nullptr
         );
         QString text() const;
+        // Text field of a single line dialog
+        QLineEdit* lineEdit() const { return mLineEdit; }
 
         struct CheckResult {
             bool acceptable;

@@ -11,9 +11,11 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QCompleter>
 #include <QCoreApplication>
 #include <QHeaderView>
 #include <QItemSelectionModel>
+#include <QLineEdit>
 #include <QMenu>
 #include <QScrollBar>
 
@@ -393,6 +395,8 @@ namespace tremotesf {
             });
         }
 
+        addMoveAction(contextMenu, sourceIndexes);
+
         contextMenu.exec(viewport()->mapToGlobal(pos));
     }
 
@@ -441,5 +445,55 @@ namespace tremotesf {
                     qApp->translate("tremotesf", "%Ln files will be moved", nullptr, static_cast<int>(movedFiles))
             };
         };
+    }
+
+    void TorrentFilesView::addMoveAction(QMenu& menu, const QModelIndexList& sourceIndexes) {
+        if (!canSetFilePaths()) {
+            return;
+        }
+        QAction* moveAction = menu.addAction(
+            QIcon::fromTheme("edit-move"_L1),
+            //: Context menu item, moves selected files and folders
+            qApp->translate("tremotesf", "&Move...")
+        );
+        QObject::connect(moveAction, &QAction::triggered, this, [entries = selectedEntries(sourceIndexes), this] {
+            const auto filePaths = mModel->currentFilePaths();
+            // One entry gets the path that the user enters, several ones go into the folder that the user enters
+            const bool single = entries.size() == 1;
+            const auto movesFor = [=](const QString& text) {
+                return single ? std::vector{moveEntry(entries.front(), text)} : moveEntriesIntoFolder(entries, text);
+            };
+            auto* const dialog = new TextInputDialog(
+                //: Dialog title
+                qApp->translate("tremotesf", "Move"),
+                single ? qApp->translate("tremotesf", "New path:")
+                       //: Text field label, empty folder means torrent's location
+                       : qApp->translate("tremotesf", "Move into folder (empty for the top level):"),
+                single ? entries.front() : commonFolder(entries),
+                //: Dialog confirmation button
+                qApp->translate("tremotesf", "Move"),
+                false,
+                this
+            );
+            dialog->setCheck(checkMoves(movesFor));
+
+            QStringList folders{};
+            for (const QString& path : filePaths) {
+                for (const QString& folder : parentFolders(path)) {
+                    folders.push_back(folder + u'/');
+                }
+            }
+            folders.removeDuplicates();
+            auto* const lineEdit = dialog->lineEdit();
+            lineEdit->setCompleter(new QCompleter(folders, dialog));
+            if (single) {
+                const auto nameStart = static_cast<int>(entries.front().lastIndexOf(u'/') + 1);
+                lineEdit->setSelection(nameStart, static_cast<int>(entries.front().size()) - nameStart);
+            }
+
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            QObject::connect(dialog, &QDialog::accepted, this, [=, this] { moveEntries(movesFor(dialog->text())); });
+            dialog->show();
+        });
     }
 }
