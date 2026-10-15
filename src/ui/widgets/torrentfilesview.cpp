@@ -19,6 +19,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QScrollBar>
+#include <QPainter>
 
 #include "rpc/mounteddirectoriesutils.h"
 #include "rpc/serversettings.h"
@@ -132,6 +133,14 @@ namespace tremotesf {
         } else {
             Settings::instance()->set_torrentFilesViewHeaderState(header()->saveState());
         }
+    }
+
+    void TorrentFilesView::drawBranches(QPainter* painter, const QRect& rect, const QModelIndex& index) const {
+        // Background of a row covers its branch indicators too
+        if (const auto background = index.data(Qt::BackgroundRole); background.isValid()) {
+            painter->fillRect(rect, background.value<QBrush>());
+        }
+        QTreeView::drawBranches(painter, rect, index);
     }
 
     void TorrentFilesView::init() {

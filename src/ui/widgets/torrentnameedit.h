@@ -5,6 +5,7 @@
 #ifndef TREMOTESF_TORRENTNAMEEDIT_H
 #define TREMOTESF_TORRENTNAMEEDIT_H
 
+#include <set>
 #include <vector>
 
 #include <QLineEdit>
@@ -14,7 +15,8 @@ namespace tremotesf {
 
     /**
      * Name of the torrent whose files are in the model, i.e. of its top-level folder or file. Editing it renames them,
-     * along with files named after it, right away. It is reset whenever the files get new paths otherwise.
+     * along with files named after it, right away, and highlights the files whose names it changed. It is reset
+     * whenever the files get new paths otherwise, which keeps the highlighted files.
      */
     class TorrentNameEdit final : public QLineEdit {
         Q_OBJECT
@@ -33,8 +35,9 @@ namespace tremotesf {
 
         LocalTorrentFilesModel* mModel;
         QAction* mErrorAction;
-        // Paths of the files before the text renamed them
+        // Paths and highlighted files before the text renamed them
         std::vector<QString> mBaseFilePaths{};
+        std::set<int> mBaseHighlightedFiles{};
         bool mHasTitle{};
         bool mRenamingFiles{};
 
