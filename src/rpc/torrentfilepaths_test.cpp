@@ -214,6 +214,57 @@ private slots:
         QCOMPARE(moveLocationFolderIntoTorrent(u"C:/"_s, Paths{u"1.flac"_s}, PathOs::Windows), std::nullopt);
         QCOMPARE(moveLocationFolderIntoTorrent(u"//server/share"_s, Paths{u"1.flac"_s}, PathOs::Windows), std::nullopt);
     }
+
+    void checkTorrentTitle() {
+        QCOMPARE(torrentTitle(Paths{u"Movie.mkv"_s}), u"Movie"_s);
+        QCOMPARE(torrentTitle(Paths{u"archive.tar.gz"_s}), u"archive.tar"_s);
+        QCOMPARE(torrentTitle(Paths{u"README"_s}), u"README"_s);
+        QCOMPARE(torrentTitle(Paths{u".hidden"_s}), u".hidden"_s);
+        QCOMPARE(torrentTitle(Paths{u"Movie.2020/Movie.2020.mkv"_s, u"Movie.2020/Sub/1.srt"_s}), u"Movie.2020"_s);
+        QCOMPARE(torrentTitle(Paths{u"A/1"_s, u"B/2"_s}), std::nullopt);
+        QCOMPARE(torrentTitle(Paths{u"A/1"_s, u"2"_s}), std::nullopt);
+        QCOMPARE(torrentTitle(Paths{}), std::nullopt);
+    }
+
+    void checkRenameTorrentTitle() {
+        const auto rename = [](const Paths& paths, const QString& title) {
+            return applyPathMoves(paths, renameTorrentTitle(paths, title).value());
+        };
+        QCOMPARE(rename(Paths{u"Movie.mkv"_s}, u"T"_s), (Paths{u"T.mkv"_s}));
+        QCOMPARE(rename(Paths{u"archive.tar.gz"_s}, u"T"_s), (Paths{u"T.gz"_s}));
+        QCOMPARE(rename(Paths{u"README"_s}, u"T"_s), (Paths{u"T"_s}));
+        QCOMPARE(
+            rename(
+                Paths{
+                    u"Movie/Movie.mkv"_s,
+                    u"Movie/Movie.en.srt"_s,
+                    u"Movie/Movie"_s,
+                    u"Movie/sample.mkv"_s,
+                    u"Movie/Movies.txt"_s,
+                    u"Movie/Sub/Movie.srt"_s
+                },
+                u"T"_s
+            ),
+            (Paths{u"T/T.mkv"_s, u"T/T.en.srt"_s, u"T/T"_s, u"T/sample.mkv"_s, u"T/Movies.txt"_s, u"T/Sub/Movie.srt"_s})
+        );
+        // The only file
+        QCOMPARE(rename(Paths{u"Release/abc.mkv"_s}, u"T"_s), (Paths{u"T/T.mkv"_s}));
+        QCOMPARE(rename(Paths{u"Release/Release.en.srt"_s}, u"T"_s), (Paths{u"T/T.en.srt"_s}));
+        QCOMPARE(rename(Paths{u"Release/Sub/abc.mkv"_s}, u"T"_s), (Paths{u"T/Sub/abc.mkv"_s}));
+        QCOMPARE(
+            rename(Paths{u"Release/abc.mkv"_s, u"Release/def.mkv"_s}, u"T"_s),
+            (Paths{u"T/abc.mkv"_s, u"T/def.mkv"_s})
+        );
+        QCOMPARE(renameTorrentTitle(Paths{u"A/1"_s, u"B/2"_s}, u"T"_s), std::nullopt);
+    }
+
+    void checkTorrentTitleError() {
+        QCOMPARE(torrentTitleError(Paths{u"Movie/Movie.mkv"_s}, u"T"_s), std::nullopt);
+        QVERIFY(torrentTitleError(Paths{u"Movie/Movie.mkv"_s}, u"A/B"_s).has_value());
+        QVERIFY(torrentTitleError(Paths{u"Movie/Movie.mkv"_s}, u".."_s).has_value());
+        QVERIFY(torrentTitleError(Paths{u"Movie/Movie.mkv"_s, u"Movie/T.mkv"_s}, u"T"_s).has_value());
+        QVERIFY(torrentTitleError(Paths{u"A/1"_s, u"B/2"_s}, u"T"_s).has_value());
+    }
 };
 
 QTEST_GUILESS_MAIN(TorrentFilePathsTest)

@@ -136,6 +136,29 @@ namespace tremotesf {
      */
     std::optional<TorrentFilesLayout>
     moveLocationFolderIntoTorrent(const QString& location, std::span<const QString> filePaths, PathOs pathOs);
+
+    /**
+     * Title of a torrent: the name of its single top-level folder, or the name of its single file
+     * without the extension
+     * @return std::nullopt if the torrent's files have no single top-level entry
+     */
+    std::optional<QString> torrentTitle(std::span<const QString> filePaths);
+
+    /**
+     * Gives a torrent a new title, by renaming its single file (keeping the extension) or its top-level folder.
+     * Files directly in the folder whose names are the old title, or start with it followed by a dot, get the new
+     * title instead, e.g. "Movie/Movie.mkv" and "Movie/Movie.en.srt" become "T/T.mkv" and "T/T.en.srt".
+     * If no files are named like that and the folder holds the torrent's only file, the file gets the new title
+     * as well, e.g. "Release/abc.mkv" becomes "T/T.mkv".
+     * @return std::nullopt if the torrent has no title
+     */
+    std::optional<std::vector<PathMove>> renameTorrentTitle(std::span<const QString> filePaths, const QString& title);
+
+    /**
+     * Why the torrent can't get this title
+     * @return std::nullopt if it can
+     */
+    std::optional<QString> torrentTitleError(std::span<const QString> filePaths, const QString& title);
 }
 
 #endif // TREMOTESF_RPC_TORRENTFILEPATHS_H

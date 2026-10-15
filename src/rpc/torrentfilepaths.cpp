@@ -269,4 +269,59 @@ namespace tremotesf {
                          | std::ranges::to<std::vector>()
         };
     }
+
+    std::optional<QString> torrentTitle(std::span<const QString> filePaths) {
+        if (filePaths.size() == 1 && !filePaths.front().contains(u'/')) {
+            return fileNameWithoutExtension(filePaths.front());
+        }
+        if (const auto paths = removeTopLevelFolder(filePaths); paths) {
+            return filePaths.front().first(filePaths.front().size() - paths->front().size() - 1);
+        }
+        return std::nullopt;
+    }
+
+    std::optional<std::vector<PathMove>> renameTorrentTitle(std::span<const QString> filePaths, const QString& title) {
+        const auto oldTitle = torrentTitle(filePaths);
+        if (!oldTitle) {
+            return std::nullopt;
+        }
+        const auto& firstPath = filePaths.front();
+        if (!firstPath.contains(u'/')) {
+            return std::vector{PathMove{.from = firstPath, .to = title + firstPath.sliced(oldTitle->size())}};
+        }
+
+        std::vector moves{PathMove{.from = *oldTitle, .to = title}};
+        const auto folderPrefix = *oldTitle + u'/';
+        for (const QString& path : filePaths) {
+            const auto name = QStringView(path).sliced(folderPrefix.size());
+            if (!name.contains(u'/') && (name == *oldTitle || name.startsWith(*oldTitle + u'.'))) {
+                moves.push_back({.from = path, .to = title + u'/' + title + name.sliced(oldTitle->size())});
+            }
+        }
+        if (moves.size() == 1 && filePaths.size() == 1) {
+            const auto name = entryName(firstPath);
+            if (parentFolder(firstPath) == *oldTitle) {
+                moves.push_back(
+                    {.from = firstPath,
+                     .to = title + u'/' + title + QStringView(name).sliced(fileNameWithoutExtension(name).size())}
+                );
+            }
+        }
+        return moves;
+    }
+
+    std::optional<QString> torrentTitleError(std::span<const QString> filePaths, const QString& title) {
+        if (title.contains(u'/')) {
+            //: %1 is a character that can't be used in names of files
+            return qApp->translate("tremotesf", "Name can't contain «%1»").arg(u'/');
+        }
+        const auto moves = renameTorrentTitle(filePaths, title);
+        if (!moves) {
+            return qApp->translate("tremotesf", "Torrent has no single top-level folder or file");
+        }
+        if (const auto error = checkFilePaths(applyPathMoves(filePaths, *moves)); error) {
+            return filePathsErrorString(*error);
+        }
+        return std::nullopt;
+    }
 }
