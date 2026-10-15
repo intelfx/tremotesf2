@@ -17,6 +17,50 @@ class TorrentFilePathsTest final : public QObject {
     Q_OBJECT
 
 private slots:
+    void checkApplyPathMoves() {
+        const Paths paths{u"A/1"_s, u"A/2"_s, u"A/B/3"_s, u"AB/4"_s, u"5"_s};
+        QCOMPARE(
+            applyPathMoves(paths, std::vector{PathMove{.from = u"A"_s, .to = u"X/Y"_s}}),
+            (Paths{u"X/Y/1"_s, u"X/Y/2"_s, u"X/Y/B/3"_s, u"AB/4"_s, u"5"_s})
+        );
+        QCOMPARE(
+            applyPathMoves(
+                paths,
+                std::vector{
+                    PathMove{.from = u"A/B/3"_s, .to = u"3"_s},
+                    PathMove{.from = u"A"_s, .to = u"C"_s},
+                    PathMove{.from = u"A/1"_s, .to = u"C/one"_s}
+                }
+            ),
+            (Paths{u"C/one"_s, u"C/2"_s, u"3"_s, u"AB/4"_s, u"5"_s})
+        );
+        QCOMPARE(applyPathMoves(paths, std::vector<PathMove>{}), paths);
+    }
+
+    void checkCheckFilePaths() {
+        using Type = FilePathsError::Type;
+        QCOMPARE(checkFilePaths(Paths{u"A/1"_s, u"A/B/2"_s, u"3"_s}), std::nullopt);
+        for (const auto& path : {u""_s, u"/A"_s, u"A/"_s, u"A//1"_s, u"./1"_s, u"A/../1"_s, u".."_s}) {
+            QCOMPARE(checkFilePaths(Paths{u"A/1"_s, path}), (FilePathsError{.type = Type::InvalidPath, .path = path}));
+        }
+        QCOMPARE(
+            checkFilePaths(Paths{u"A/1"_s, u"A/2"_s, u"A/1"_s}),
+            (FilePathsError{.type = Type::DuplicatePath, .path = u"A/1"_s})
+        );
+        QCOMPARE(
+            checkFilePaths(Paths{u"A/B/1"_s, u"A/B"_s}),
+            (FilePathsError{.type = Type::FileAndFolder, .path = u"A/B"_s})
+        );
+        QCOMPARE(checkFilePaths(Paths{u"A/B 1"_s, u"A/B"_s, u"A/B.1"_s}), std::nullopt);
+    }
+
+    void checkTopmostEntries() {
+        QCOMPARE(
+            topmostEntries(Paths{u"A/1"_s, u"B"_s, u"A"_s, u"B/C/2"_s, u"AB/3"_s, u"A"_s}),
+            (Paths{u"B"_s, u"A"_s, u"AB/3"_s})
+        );
+    }
+
     void checkChangedFilePaths() {
         using ChangedPaths = std::vector<std::optional<QString>>;
         QCOMPARE(

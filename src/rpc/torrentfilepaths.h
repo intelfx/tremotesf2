@@ -21,6 +21,45 @@ namespace tremotesf {
         bool operator==(const TorrentFilesLayout&) const = default;
     };
 
+    // Moves a file, or a folder with everything in it, to a new path
+    struct PathMove {
+        QString from;
+        QString to;
+
+        bool operator==(const PathMove&) const = default;
+    };
+
+    /**
+     * Paths that torrent's files get with the moves. A file follows the move with the longest `from`
+     * that is either its path or a folder above it, e.g. with moves "A" -> "B" and "A/1" -> "C/1",
+     * "A/1" becomes "C/1" and "A/2" becomes "B/2".
+     */
+    std::vector<QString> applyPathMoves(std::span<const QString> filePaths, std::span<const PathMove> moves);
+
+    struct FilePathsError {
+        enum class Type {
+            // Path is empty, or has an empty, "." or ".." component
+            InvalidPath,
+            // Several files have this path
+            DuplicatePath,
+            // This is a path of a file and a folder of another file at the same time
+            FileAndFolder
+        };
+        Type type;
+        QString path;
+
+        bool operator==(const FilePathsError&) const = default;
+    };
+
+    // Checks that paths of torrent's files are valid and don't clash, which servers require
+    std::optional<FilePathsError> checkFilePaths(std::span<const QString> filePaths);
+
+    /**
+     * Paths of entries that are not inside other entries, e.g. "A" and "B/1" of "A", "A/1" and "B/1".
+     * Duplicates are dropped as well.
+     */
+    std::vector<QString> topmostEntries(std::span<const QString> entryPaths);
+
     /**
      * New path of each file, or std::nullopt for a file whose path doesn't change, as servers take them
      * @return Empty if no file's path changes

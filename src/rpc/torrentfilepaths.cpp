@@ -7,9 +7,82 @@
 #include <algorithm>
 #include <ranges>
 
+#include <QSet>
+
 using namespace Qt::StringLiterals;
 
 namespace tremotesf {
+    namespace {
+        // Whether the path is the entry or is inside it
+        bool isInEntry(QStringView path, QStringView entry) {
+            return path.startsWith(entry) && (path.size() == entry.size() || path.at(entry.size()) == u'/');
+        }
+
+        // Paths of folders that hold the entry, from the outermost one
+        auto parentFolders(QStringView path) {
+            return std::views::iota(qsizetype{0}, path.size())
+                   | std::views::filter([=](qsizetype i) { return path.at(i) == u'/'; })
+                   | std::views::transform([=](qsizetype i) { return path.first(i); });
+        }
+
+        bool isValidPath(QStringView path) {
+            return std::ranges::none_of(path.tokenize(u'/'), [](QStringView part) {
+                return part.isEmpty() || part == u"." || part == u"..";
+            });
+        }
+    }
+
+    std::vector<QString> applyPathMoves(std::span<const QString> filePaths, std::span<const PathMove> moves) {
+        return filePaths
+               | std::views::transform([&](const QString& path) {
+                     const PathMove* move{};
+                     for (const PathMove& candidate : moves) {
+                         if (isInEntry(path, candidate.from) && (!move || candidate.from.size() > move->from.size())) {
+                             move = &candidate;
+                         }
+                     }
+                     return move ? move->to + QStringView(path).sliced(move->from.size()) : path;
+                 })
+               | std::ranges::to<std::vector>();
+    }
+
+    std::optional<FilePathsError> checkFilePaths(std::span<const QString> filePaths) {
+        QSet<QStringView> paths{};
+        paths.reserve(static_cast<qsizetype>(filePaths.size()));
+        for (const QString& path : filePaths) {
+            if (path.isEmpty() || !isValidPath(path)) {
+                return FilePathsError{.type = FilePathsError::Type::InvalidPath, .path = path};
+            }
+            if (paths.contains(path)) {
+                return FilePathsError{.type = FilePathsError::Type::DuplicatePath, .path = path};
+            }
+            paths.insert(path);
+        }
+        for (const QString& path : filePaths) {
+            for (const QStringView folder : parentFolders(path)) {
+                if (paths.contains(folder)) {
+                    return FilePathsError{.type = FilePathsError::Type::FileAndFolder, .path = folder.toString()};
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::vector<QString> topmostEntries(std::span<const QString> entryPaths) {
+        const auto entries = entryPaths | std::ranges::to<QSet<QStringView>>();
+        QSet<QStringView> added{};
+        std::vector<QString> topmost{};
+        for (const QString& path : entryPaths) {
+            if (!added.contains(path) && std::ranges::none_of(parentFolders(path), [&](QStringView folder) {
+                    return entries.contains(folder);
+                })) {
+                added.insert(path);
+                topmost.push_back(path);
+            }
+        }
+        return topmost;
+    }
+
     std::vector<std::optional<QString>>
     changedFilePaths(std::span<const QString> filePaths, std::span<const QString> newFilePaths) {
         std::vector<std::optional<QString>> paths{};
