@@ -5,10 +5,14 @@
 #ifndef TREMOTESF_TEXTINPUTDIALOG_H
 #define TREMOTESF_TEXTINPUTDIALOG_H
 
+#include <functional>
+
 #include <QDialog>
 
 class QLineEdit;
 class QPlainTextEdit;
+class QPushButton;
+class KMessageWidget;
 
 namespace tremotesf {
     class TextInputDialog final : public QDialog {
@@ -25,9 +29,26 @@ namespace tremotesf {
         );
         QString text() const;
 
+        struct CheckResult {
+            bool acceptable;
+            // Shown under the text field, as an error if the text is not acceptable
+            QString message{};
+        };
+        using Check = std::function<CheckResult(const QString& text)>;
+
+        /**
+         * Checks the text whenever it changes, instead of only requiring it to be non-empty
+         */
+        void setCheck(Check check);
+
     private:
+        void checkText();
+
         QLineEdit* mLineEdit = nullptr;
         QPlainTextEdit* mPlainTextEdit = nullptr;
+        KMessageWidget* mMessageWidget = nullptr;
+        QPushButton* mOkButton = nullptr;
+        Check mCheck{};
     };
 }
 

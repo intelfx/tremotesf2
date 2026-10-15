@@ -11,6 +11,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include <KMessageWidget>
+
 namespace tremotesf {
     TextInputDialog::TextInputDialog(
         const QString& title,
@@ -38,32 +40,26 @@ namespace tremotesf {
             layout->addWidget(mLineEdit);
         }
 
+        mMessageWidget = new KMessageWidget(this);
+        mMessageWidget->setCloseButtonVisible(false);
+        mMessageWidget->setWordWrap(true);
+        mMessageWidget->hide();
+        layout->addWidget(mMessageWidget);
+
         auto dialogButtonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        mOkButton = dialogButtonBox->button(QDialogButtonBox::Ok);
         if (!okButtonText.isEmpty()) {
-            dialogButtonBox->button(QDialogButtonBox::Ok)->setText(okButtonText);
+            mOkButton->setText(okButtonText);
         }
         QObject::connect(dialogButtonBox, &QDialogButtonBox::accepted, this, &TextInputDialog::accept);
         QObject::connect(dialogButtonBox, &QDialogButtonBox::rejected, this, &TextInputDialog::reject);
 
-        if (text.isEmpty()) {
-            dialogButtonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
-        }
-
-        const auto onTextChanged = [dialogButtonBox](const QString& text) {
-            if (text.isEmpty()) {
-                dialogButtonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
-            } else {
-                dialogButtonBox->button(QDialogButtonBox::Ok)->setEnabled(true);
-            }
-        };
-
         if (multiline) {
-            QObject::connect(mPlainTextEdit, &QPlainTextEdit::textChanged, this, [=, this] {
-                onTextChanged(mPlainTextEdit->toPlainText());
-            });
+            QObject::connect(mPlainTextEdit, &QPlainTextEdit::textChanged, this, &TextInputDialog::checkText);
         } else {
-            QObject::connect(mLineEdit, &QLineEdit::textChanged, this, onTextChanged);
+            QObject::connect(mLineEdit, &QLineEdit::textChanged, this, &TextInputDialog::checkText);
         }
+        checkText();
 
         layout->addWidget(dialogButtonBox);
 
@@ -71,4 +67,22 @@ namespace tremotesf {
     }
 
     QString TextInputDialog::text() const { return mLineEdit ? mLineEdit->text() : mPlainTextEdit->toPlainText(); }
+
+    void TextInputDialog::setCheck(Check check) {
+        mCheck = std::move(check);
+        checkText();
+    }
+
+    void TextInputDialog::checkText() {
+        const QString text = this->text();
+        const auto [acceptable, message] = mCheck ? mCheck(text) : CheckResult{.acceptable = !text.isEmpty()};
+        mOkButton->setEnabled(acceptable);
+        if (message.isEmpty()) {
+            mMessageWidget->hide();
+        } else {
+            mMessageWidget->setMessageType(acceptable ? KMessageWidget::Information : KMessageWidget::Error);
+            mMessageWidget->setText(message);
+            mMessageWidget->show();
+        }
+    }
 }
