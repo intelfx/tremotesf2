@@ -6,7 +6,9 @@
 #define TREMOTESF_TORRENTFILESVIEW_H
 
 #include <functional>
+#include <optional>
 
+#include <QSet>
 #include <QTreeView>
 
 namespace tremotesf {
@@ -32,14 +34,30 @@ namespace tremotesf {
         void saveState();
 
     private:
+        struct TreeState {
+            std::optional<int> torrentId;
+            QSet<QString> directories{};
+            QSet<QString> expandedDirectories{};
+            QSet<QString> selectedEntries{};
+            int scrollPosition;
+        };
+
         void init();
+        void saveTreeState();
+        void restoreTreeState(const TreeState& state);
         void onModelReset();
         void showContextMenu(QPoint pos);
+
+        std::optional<int> torrentId() const;
+        QString entryPath(const QModelIndex& index) const;
 
         bool mLocalFile;
         BaseTorrentFilesModel* mModel;
         TorrentFilesProxyModel* mProxyModel;
         Rpc* mRpc;
+        // Torrent whose files are in the tree, which may already be gone from the model when it's reset
+        std::optional<int> mTreeTorrentId{};
+        std::optional<TreeState> mSavedTreeState{};
     };
 }
 

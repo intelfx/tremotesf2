@@ -5,7 +5,9 @@
 #include "torrentfilesview.h"
 
 #include <algorithm>
+#include <concepts>
 #include <ranges>
+#include <utility>
 
 #include <QAction>
 #include <QActionGroup>
@@ -13,6 +15,7 @@
 #include <QHeaderView>
 #include <QItemSelectionModel>
 #include <QMenu>
+#include <QScrollBar>
 
 #include "rpc/mounteddirectoriesutils.h"
 #include "rpc/serversettings.h"
@@ -22,6 +25,7 @@
 #include "filemanagerlauncher.h"
 #include "settings.h"
 #include "rpc/rpc.h"
+#include "rpc/torrent.h"
 #include "ui/itemmodels/torrentfilesmodelentry.h"
 #include "ui/itemmodels/torrentfilesproxymodel.h"
 #include "ui/screens/addtorrent/localtorrentfilesmodel.h"
@@ -34,6 +38,17 @@
 using namespace Qt::StringLiterals;
 
 namespace tremotesf {
+    namespace {
+        template<std::invocable<const QModelIndex&> Function>
+        void forEachIndex(const QAbstractItemModel* model, const QModelIndex& parent, Function&& function) {
+            for (int row = 0, rows = model->rowCount(parent); row < rows; ++row) {
+                const auto index = model->index(row, 0, parent);
+                function(index);
+                forEachIndex(model, index, function);
+            }
+        }
+    }
+
     TorrentFilesView::TorrentFilesView(LocalTorrentFilesModel* model, Rpc* rpc, QWidget* parent)
         : QTreeView(parent),
           mLocalFile(true),
@@ -113,10 +128,49 @@ namespace tremotesf {
         setModel(mProxyModel);
         setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+        QObject::connect(mModel, &BaseTorrentFilesModel::modelAboutToBeReset, this, &TorrentFilesView::saveTreeState);
         QObject::connect(mModel, &BaseTorrentFilesModel::modelReset, this, &TorrentFilesView::onModelReset);
         QObject::connect(this, &TorrentFilesView::customContextMenuRequested, this, &TorrentFilesView::showContextMenu);
 
         onModelReset();
+    }
+
+    // The tree is built anew when torrent's files get new paths. Models that build it asynchronously
+    // are reset to an empty tree first, so the state is restored on the next reset that has rows
+    void TorrentFilesView::saveTreeState() {
+        if (mModel->rowCount() == 0) {
+            return;
+        }
+        TreeState state{.torrentId = mTreeTorrentId, .scrollPosition = verticalScrollBar()->value()};
+        forEachIndex(mProxyModel, {}, [&](const QModelIndex& index) {
+            if (mProxyModel->hasChildren(index)) {
+                const QString path = entryPath(index);
+                state.directories.insert(path);
+                if (isExpanded(index)) {
+                    state.expandedDirectories.insert(path);
+                }
+            }
+        });
+        for (const QModelIndex& index : selectionModel()->selectedRows()) {
+            state.selectedEntries.insert(entryPath(index));
+        }
+        mSavedTreeState = std::move(state);
+    }
+
+    void TorrentFilesView::restoreTreeState(const TreeState& state) {
+        QItemSelection selection{};
+        forEachIndex(mProxyModel, {}, [&](const QModelIndex& index) {
+            const QString path = entryPath(index);
+            if (state.expandedDirectories.contains(path)) {
+                expand(index);
+            }
+            if (state.selectedEntries.contains(path)) {
+                selection.select(index, index);
+            }
+        });
+        selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        updateGeometries();
+        verticalScrollBar()->setValue(state.scrollPosition);
     }
 
     void TorrentFilesView::onModelReset() {
@@ -126,10 +180,34 @@ namespace tremotesf {
                 return mModel->rowCount(mModel->index(row, 0)) > 0;
             });
             setRootIsDecorated(hasDirectories);
+            auto savedTreeState = std::exchange(mSavedTreeState, std::nullopt);
+            mTreeTorrentId = torrentId();
+            if (savedTreeState && savedTreeState->torrentId != mTreeTorrentId) {
+                savedTreeState.reset();
+            }
             if (hasDirectories && topLevelRows == 1) {
-                expand(mProxyModel->index(0, 0));
+                const auto topLevelIndex = mProxyModel->index(0, 0);
+                // Unless it was already there
+                if (!savedTreeState || !savedTreeState->directories.contains(entryPath(topLevelIndex))) {
+                    expand(topLevelIndex);
+                }
+            }
+            if (savedTreeState) {
+                restoreTreeState(*savedTreeState);
             }
         }
+    }
+
+    std::optional<int> TorrentFilesView::torrentId() const {
+        if (mLocalFile) {
+            return std::nullopt;
+        }
+        const auto* const torrent = static_cast<const TorrentFilesModel*>(mModel)->torrent();
+        return torrent ? std::optional(torrent->data().id) : std::nullopt;
+    }
+
+    QString TorrentFilesView::entryPath(const QModelIndex& index) const {
+        return static_cast<const TorrentFilesModelEntry*>(mProxyModel->mapToSource(index).internalPointer())->path();
     }
 
     void TorrentFilesView::showContextMenu(QPoint pos) {
