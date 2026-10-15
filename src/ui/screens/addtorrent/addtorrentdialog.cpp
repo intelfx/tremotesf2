@@ -39,6 +39,7 @@
 #include "rpc/rpc.h"
 #include "rpc/serversettings.h"
 #include "rpc/torrent.h"
+#include "ui/widgets/contentlayoutcombobox.h"
 #include "ui/widgets/editlabelswidget.h"
 #include "ui/widgets/torrentremotedirectoryselectionwidget.h"
 #include "ui/widgets/torrentfilesview.h"
@@ -50,12 +51,6 @@ namespace tremotesf {
     namespace {
         constexpr std::array priorityComboBoxItems{
             TorrentData::Priority::High, TorrentData::Priority::Normal, TorrentData::Priority::Low
-        };
-
-        constexpr std::array contentLayoutComboBoxItems{
-            Settings::TorrentContentLayout::Original,
-            Settings::TorrentContentLayout::CreateSubfolder,
-            Settings::TorrentContentLayout::NoSubfolder
         };
 
         TorrentData::Priority priorityFromComboBoxIndex(int index) {
@@ -182,31 +177,11 @@ namespace tremotesf {
         //: Combo box label
         layout->addRow(qApp->translate("tremotesf", "Torrent priority:"), priorityComboBox);
 
-        QComboBox* contentLayoutComboBox{};
+        ContentLayoutComboBox* contentLayoutComboBox{};
         QWidget* contentLayoutLabel{};
         if (forTorrentFile) {
-            contentLayoutComboBox = new QComboBox{};
-            contentLayoutComboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-            for (const auto contentLayout : contentLayoutComboBoxItems) {
-                switch (contentLayout) {
-                case Settings::TorrentContentLayout::Original:
-                    //: Content layout of added torrent: files are laid out as in the torrent file
-                    contentLayoutComboBox->addItem(qApp->translate("tremotesf", "Original"));
-                    break;
-                case Settings::TorrentContentLayout::CreateSubfolder:
-                    //: Content layout of added torrent: a torrent with a single file gets a folder for it
-                    contentLayoutComboBox->addItem(qApp->translate("tremotesf", "Create subfolder"));
-                    break;
-                case Settings::TorrentContentLayout::NoSubfolder:
-                    //: Content layout of added torrent: files are not put into the torrent's top-level folder
-                    contentLayoutComboBox->addItem(qApp->translate("tremotesf", "Don't create subfolder"));
-                    break;
-                }
-            }
-            contentLayoutComboBox->setCurrentIndex(
-                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-                indexOfCasted<int>(contentLayoutComboBoxItems, parameters.contentLayout).value()
-            );
+            contentLayoutComboBox = new ContentLayoutComboBox{};
+            contentLayoutComboBox->setContentLayout(parameters.contentLayout);
             //: Combo box label
             layout->addRow(qApp->translate("tremotesf", "Content layout:"), contentLayoutComboBox);
             contentLayoutLabel = layout->labelForField(contentLayoutComboBox);
@@ -568,10 +543,7 @@ namespace tremotesf {
             moveTorrentFileToTrashCheckBox->setChecked(initialParameters.moveTorrentFileToTrash);
         }
         if (contentLayoutComboBox) {
-            contentLayoutComboBox->setCurrentIndex(
-                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-                indexOfCasted<int>(contentLayoutComboBoxItems, initialParameters.contentLayout).value()
-            );
+            contentLayoutComboBox->setContentLayout(initialParameters.contentLayout);
         }
     }
 
@@ -590,10 +562,10 @@ namespace tremotesf {
     }
 
     Settings::TorrentContentLayout AddTorrentDialog::AddTorrentParametersWidgets::contentLayout() const {
-        if (!contentLayoutComboBox || contentLayoutComboBox->currentIndex() == -1) {
+        if (!contentLayoutComboBox) {
             return Settings::TorrentContentLayout::Original;
         }
-        return contentLayoutComboBoxItems.at(static_cast<size_t>(contentLayoutComboBox->currentIndex()));
+        return contentLayoutComboBox->contentLayout();
     }
 
     void AddTorrentDialog::AddTorrentParametersWidgets::updateContentLayoutVisibility(Rpc* rpc) const {

@@ -105,6 +105,7 @@ target_sources(tremotesf_objects
     ui/stylehelpers.cpp
     ui/widgets/basetreeview.cpp
 
+    ui/widgets/contentlayoutcombobox.cpp
     ui/widgets/editlabelswidget.cpp
     ui/widgets/listplaceholder.cpp
     ui/widgets/progressbardelegate.cpp
@@ -220,6 +221,7 @@ target_sources(tremotesf_objects
     ui/systemcolorsprovider.h
     ui/widgets/basetreeview.h
 
+    ui/widgets/contentlayoutcombobox.h
     ui/widgets/editlabelswidget.h
     ui/widgets/listplaceholder.h
     ui/widgets/progressbardelegate.h

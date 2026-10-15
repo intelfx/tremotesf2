@@ -30,6 +30,7 @@ class QPlainTextEdit;
 class KMessageWidget;
 
 namespace tremotesf {
+    class ContentLayoutComboBox;
     class EditLabelsWidget;
     class LocalTorrentFilesModel;
     class TorrentDownloadDirectoryDirectorySelectionWidget;
@@ -59,7 +60,7 @@ namespace tremotesf {
             QCheckBox* startTorrentCheckBox;
             QGroupBox* deleteTorrentFileGroupBox;
             QCheckBox* moveTorrentFileToTrashCheckBox;
-            QComboBox* contentLayoutComboBox;
+            ContentLayoutComboBox* contentLayoutComboBox;
             QWidget* contentLayoutLabel;
 
             void reset(Rpc* rpc) const;
