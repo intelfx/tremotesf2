@@ -7,6 +7,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <span>
 #include <vector>
 
@@ -22,6 +23,8 @@ namespace tremotesf {
 
     public:
         explicit LocalTorrentFilesModel(QObject* parent = nullptr);
+
+        QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
         /**
          * @throws bencode::Error
@@ -50,6 +53,10 @@ namespace tremotesf {
         // Lays out the files anew if their paths were set with setFilePaths(), which only some servers can take
         void discardSetFilePaths();
 
+        // Ids of files whose rows are highlighted. Laying out the files anew clears them.
+        const std::set<int>& highlightedFiles() const;
+        void setHighlightedFiles(std::set<int> fileIds);
+
     private:
         void layOutFiles();
         void applyFilePaths(std::span<const QString> paths);
@@ -60,6 +67,7 @@ namespace tremotesf {
 
         std::map<QString, QString> mRenamedFiles{};
         std::vector<QString> mTorrentFilePaths{};
+        std::set<int> mHighlightedFiles{};
 
     signals:
         // Files were loaded, or got new paths

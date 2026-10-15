@@ -38,6 +38,12 @@ namespace tremotesf {
 
         void saveState();
 
+    protected:
+        void drawBranches(QPainter* painter, const QRect& rect, const QModelIndex& index) const override;
+        void dataChanged(
+            const QModelIndex& topLeft, const QModelIndex& bottomRight, const QList<int>& roles = QList<int>()
+        ) override;
+
     private:
         struct TreeState {
             std::optional<int> torrentId;

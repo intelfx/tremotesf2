@@ -19,6 +19,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QScrollBar>
+#include <QPainter>
 
 #include "rpc/mounteddirectoriesutils.h"
 #include "rpc/serversettings.h"
@@ -131,6 +132,23 @@ namespace tremotesf {
             Settings::instance()->set_localTorrentFilesViewHeaderState(header()->saveState());
         } else {
             Settings::instance()->set_torrentFilesViewHeaderState(header()->saveState());
+        }
+    }
+
+    void TorrentFilesView::drawBranches(QPainter* painter, const QRect& rect, const QModelIndex& index) const {
+        // Background of a row covers its branch indicators too
+        if (const auto background = index.data(Qt::BackgroundRole); background.isValid()) {
+            painter->fillRect(rect, background.value<QBrush>());
+        }
+        QTreeView::drawBranches(painter, rect, index);
+    }
+
+    void
+    TorrentFilesView::dataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight, const QList<int>& roles) {
+        QTreeView::dataChanged(topLeft, bottomRight, roles);
+        // Background is painted under branch indicators too, which are outside of the changed items
+        if (roles.isEmpty() || roles.contains(Qt::BackgroundRole)) {
+            viewport()->update();
         }
     }
 

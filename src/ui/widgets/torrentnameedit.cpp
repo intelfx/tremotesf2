@@ -4,6 +4,8 @@
 
 #include "torrentnameedit.h"
 
+#include <ranges>
+
 #include <QAction>
 #include <QCoreApplication>
 #include <QIcon>
@@ -30,6 +32,7 @@ namespace tremotesf {
             return;
         }
         mBaseFilePaths = mModel->currentFilePaths();
+        mBaseHighlightedFiles = mModel->highlightedFiles();
         const auto title = torrentTitle(mBaseFilePaths);
         mHasTitle = title.has_value();
         setText(title.value_or(QString{}));
@@ -43,11 +46,18 @@ namespace tremotesf {
     void TorrentNameEdit::onTextEdited(const QString& name) {
         const auto error = name.isEmpty() ? qApp->translate("tremotesf", "Name can't be empty")
                                           : torrentTitleError(mBaseFilePaths, name);
+        auto filePaths =
+            error ? mBaseFilePaths : applyPathMoves(mBaseFilePaths, renameTorrentTitle(mBaseFilePaths, name).value());
+        auto highlightedFiles = mBaseHighlightedFiles;
+        for (const auto& [id, path, basePath] : std::views::zip(std::views::iota(0), filePaths, mBaseFilePaths)) {
+            if (entryName(path) != entryName(basePath)) {
+                highlightedFiles.insert(id);
+            }
+        }
         mRenamingFiles = true;
-        mModel->setFilePaths(
-            error ? mBaseFilePaths : applyPathMoves(mBaseFilePaths, renameTorrentTitle(mBaseFilePaths, name).value())
-        );
+        mModel->setFilePaths(std::move(filePaths));
         mRenamingFiles = false;
+        mModel->setHighlightedFiles(std::move(highlightedFiles));
         mErrorAction->setVisible(error.has_value());
         mErrorAction->setToolTip(error.value_or(QString{}));
         emit stateChanged();

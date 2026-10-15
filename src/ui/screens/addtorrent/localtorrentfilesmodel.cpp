@@ -4,7 +4,13 @@
 
 #include "localtorrentfilesmodel.h"
 
+#include <algorithm>
+#include <iterator>
 #include <ranges>
+
+#include <QBrush>
+#include <QGuiApplication>
+#include <QPalette>
 
 #include "addtorrenthelpers.h"
 #include "coroutines/threadpool.h"
@@ -48,6 +54,19 @@ namespace tremotesf {
 
     LocalTorrentFilesModel::LocalTorrentFilesModel(QObject* parent)
         : BaseTorrentFilesModel({Column::Name, Column::Size, Column::Priority}, parent) {}
+
+    QVariant LocalTorrentFilesModel::data(const QModelIndex& index, int role) const {
+        if (role == Qt::BackgroundRole && index.isValid()) {
+            const auto* const entry = static_cast<const TorrentFilesModelEntry*>(index.internalPointer());
+            if (!entry->isDirectory() && mHighlightedFiles.contains(entry->fileId())) {
+                // Same as background of KMessageWidget's information message
+                QColor color = QGuiApplication::palette().color(QPalette::Highlight);
+                color.setAlphaF(0.2f);
+                return QBrush(color);
+            }
+        }
+        return BaseTorrentFilesModel::data(index, role);
+    }
 
     Coroutine<> LocalTorrentFilesModel::load(TorrentMetainfoFile torrentFile) {
         beginResetModel();
@@ -129,7 +148,17 @@ namespace tremotesf {
         }
     }
 
+    const std::set<int>& LocalTorrentFilesModel::highlightedFiles() const { return mHighlightedFiles; }
+
+    void LocalTorrentFilesModel::setHighlightedFiles(std::set<int> fileIds) {
+        std::vector<int> changedFiles{};
+        std::ranges::set_symmetric_difference(mHighlightedFiles, fileIds, std::back_inserter(changedFiles));
+        mHighlightedFiles = std::move(fileIds);
+        updateFiles(changedFiles, [](size_t, TorrentFilesModelEntry*) {});
+    }
+
     void LocalTorrentFilesModel::layOutFiles() {
+        setHighlightedFiles({});
         const auto laidOutPaths = applyContentLayout(mTorrentFilePaths, mContentLayout);
         applyFilePaths(laidOutPaths ? *laidOutPaths : mTorrentFilePaths);
         mFilePathsSet = false;
