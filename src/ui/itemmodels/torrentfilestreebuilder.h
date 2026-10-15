@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <vector>
 #include <QHash>
 #include <QStringView>
@@ -216,6 +217,33 @@ namespace tremotesf {
 
         int mFileId{};
     };
+
+    struct TorrentFilesTree {
+        std::unique_ptr<TorrentFilesModelEntry> rootEntry;
+        std::vector<TorrentFilesModelEntry*> files;
+    };
+
+    // Builds the tree of torrent's files as the server reports them
+    inline TorrentFilesTree createTorrentFilesTree(std::span<const TorrentFile> files) {
+        TorrentFilesTreeBuilder builder(files.size());
+        const bool hasSingleTopLevelEntry =
+            TorrentFilesTreeBuilder::hasSingleTopLevelEntry(files | std::views::transform(&TorrentFile::path));
+        if (!hasSingleTopLevelEntry) {
+            builder.initializeRootDirectory({});
+        }
+        for (const TorrentFile& file : files) {
+            builder.addFile(
+                file.pathParts(),
+                hasSingleTopLevelEntry,
+                file.size,
+                file.completedSize,
+                file.wanted,
+                TorrentFilesModelEntry::fromFilePriority(file.priority)
+            );
+        }
+        builder.calculateDirectoriesRecursively();
+        return {.rootEntry = std::move(builder.rootEntry), .files = std::move(builder.files)};
+    }
 }
 
 #endif // TREMOTESF_TORRENTFILESTREEBUILDER_H
