@@ -21,12 +21,7 @@
 
 namespace tremotesf {
     namespace {
-        struct CreateTreeResult {
-            std::unique_ptr<TorrentFilesModelEntry> rootEntry;
-            std::vector<TorrentFilesModelEntry*> files;
-        };
-
-        CreateTreeResult createTree(TorrentMetainfoFile torrentFile) {
+        TorrentFilesTree createTree(TorrentMetainfoFile torrentFile) {
             if (torrentFile.isSingleFile() == 1) {
                 auto rootEntry = std::make_unique<TorrentFilesModelEntry>(TorrentFilesModelEntry::createFile(
                     0,
@@ -71,21 +66,29 @@ namespace tremotesf {
     Coroutine<> LocalTorrentFilesModel::load(TorrentMetainfoFile torrentFile) {
         beginResetModel();
         try {
-            auto [rootEntry, files] = co_await runOnThreadPool(&createTree, std::move(torrentFile));
-            mRootEntry = std::move(rootEntry);
-            mFiles = std::move(files);
-            mTorrentFilePaths =
-                mFiles | std::views::transform(&TorrentFilesModelEntry::path) | std::ranges::to<std::vector>();
-            mLoaded = true;
-            endResetModel();
-            if (mContentLayout != Settings::TorrentContentLayout::Original) {
-                layOutFiles();
-            } else {
-                emit filePathsChanged();
-            }
+            finishLoading(co_await runOnThreadPool(&createTree, std::move(torrentFile)));
         } catch (const bencode::Error&) {
             endResetModel();
             throw;
+        }
+    }
+
+    Coroutine<> LocalTorrentFilesModel::load(std::vector<TorrentFile> files) {
+        beginResetModel();
+        finishLoading(co_await runOnThreadPool([files = std::move(files)] { return createTorrentFilesTree(files); }));
+    }
+
+    void LocalTorrentFilesModel::finishLoading(TorrentFilesTree tree) {
+        mRootEntry = std::move(tree.rootEntry);
+        mFiles = std::move(tree.files);
+        mInitialFilePaths =
+            mFiles | std::views::transform(&TorrentFilesModelEntry::path) | std::ranges::to<std::vector>();
+        mLoaded = true;
+        endResetModel();
+        if (mContentLayout != Settings::TorrentContentLayout::Original) {
+            layOutFiles();
+        } else {
+            emit filePathsChanged();
         }
     }
 
@@ -124,7 +127,7 @@ namespace tremotesf {
     const std::map<QString, QString>& LocalTorrentFilesModel::renamedFiles() const { return mRenamedFiles; }
 
     std::vector<std::optional<QString>> LocalTorrentFilesModel::filePaths() const {
-        return changedFilePaths(mTorrentFilePaths, currentFilePaths());
+        return changedFilePaths(mInitialFilePaths, currentFilePaths());
     }
 
     void LocalTorrentFilesModel::setContentLayout(Settings::TorrentContentLayout layout) {
@@ -159,8 +162,8 @@ namespace tremotesf {
 
     void LocalTorrentFilesModel::layOutFiles() {
         setHighlightedFiles({});
-        const auto laidOutPaths = applyContentLayout(mTorrentFilePaths, mContentLayout);
-        applyFilePaths(laidOutPaths ? *laidOutPaths : mTorrentFilePaths);
+        const auto laidOutPaths = applyContentLayout(mInitialFilePaths, mContentLayout);
+        applyFilePaths(laidOutPaths ? *laidOutPaths : mInitialFilePaths);
         mFilePathsSet = false;
     }
 
@@ -181,7 +184,7 @@ namespace tremotesf {
                 path.tokenize(u'/', Qt::SkipEmptyParts),
                 hasSingleTopLevelEntry,
                 file->size(),
-                0,
+                file->completedSize(),
                 file->wantedState() != TorrentFilesModelEntry::WantedState::Unwanted,
                 file->priority()
             );

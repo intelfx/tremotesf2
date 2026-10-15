@@ -12,12 +12,15 @@
 #include <vector>
 
 #include "settings.h"
+#include "rpc/torrentfile.h"
 #include "ui/itemmodels/basetorrentfilesmodel.h"
 #include "coroutines/coroutinefwd.h"
 
 namespace tremotesf {
     class TorrentMetainfoFile;
+    struct TorrentFilesTree;
 
+    // Files of a torrent being added, or of an added torrent, whose changes are kept here until they are sent at once
     class LocalTorrentFilesModel final : public BaseTorrentFilesModel {
         Q_OBJECT
 
@@ -30,6 +33,8 @@ namespace tremotesf {
          * @throws bencode::Error
          */
         Coroutine<> load(TorrentMetainfoFile torrentFile);
+        // Loads files of an added torrent
+        Coroutine<> load(std::vector<TorrentFile> files);
 
         bool isLoaded() const;
 
@@ -40,7 +45,7 @@ namespace tremotesf {
         const std::map<QString, QString>& renamedFiles() const;
 
         /**
-         * Path of each file, or std::nullopt for a file that has the same path as in the torrent file.
+         * Path of each file, or std::nullopt for a file that has the same path as when it was loaded.
          * Empty if no file's path differs.
          */
         std::vector<std::optional<QString>> filePaths() const;
@@ -58,6 +63,7 @@ namespace tremotesf {
         void setHighlightedFiles(std::set<int> fileIds);
 
     private:
+        void finishLoading(TorrentFilesTree tree);
         void layOutFiles();
         void applyFilePaths(std::span<const QString> paths);
 
@@ -66,7 +72,7 @@ namespace tremotesf {
         Settings::TorrentContentLayout mContentLayout{Settings::TorrentContentLayout::Original};
 
         std::map<QString, QString> mRenamedFiles{};
-        std::vector<QString> mTorrentFilePaths{};
+        std::vector<QString> mInitialFilePaths{};
         std::set<int> mHighlightedFiles{};
 
     signals:
