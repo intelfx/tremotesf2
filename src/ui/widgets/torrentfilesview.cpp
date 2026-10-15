@@ -47,6 +47,15 @@ namespace tremotesf {
                 forEachIndex(model, index, function);
             }
         }
+
+        // Folders that hold the entry, from the outermost one
+        std::vector<QString> parentFolders(const QString& path) {
+            std::vector<QString> folders{};
+            for (qsizetype i = path.indexOf(u'/'); i != -1; i = path.indexOf(u'/', i + 1)) {
+                folders.push_back(path.first(i));
+            }
+            return folders;
+        }
     }
 
     TorrentFilesView::TorrentFilesView(LocalTorrentFilesModel* model, Rpc* rpc, QWidget* parent)
@@ -154,6 +163,20 @@ namespace tremotesf {
         for (const QModelIndex& index : selectionModel()->selectedRows()) {
             state.selectedEntries.insert(entryPath(index));
         }
+        if (mPendingPathMoves) {
+            const auto& moves = *mPendingPathMoves;
+            state.expandedDirectories = applyPathMoves(std::as_const(state.expandedDirectories).values(), moves)
+                                        | std::ranges::to<QSet<QString>>();
+            state.selectedEntries.clear();
+            for (const PathMove& move : moves) {
+                state.selectedEntries.insert(move.to);
+                for (QString& folder : parentFolders(move.to)) {
+                    state.expandedDirectories.insert(std::move(folder));
+                }
+            }
+            state.scrollToSelection = true;
+            mPendingPathMoves.reset();
+        }
         mSavedTreeState = std::move(state);
     }
 
@@ -170,7 +193,13 @@ namespace tremotesf {
         });
         selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
         updateGeometries();
-        verticalScrollBar()->setValue(state.scrollPosition);
+        if (state.scrollToSelection && !selection.isEmpty()) {
+            const auto index = selection.first().topLeft();
+            selectionModel()->setCurrentIndex(index, QItemSelectionModel::NoUpdate);
+            scrollTo(index);
+        } else {
+            verticalScrollBar()->setValue(state.scrollPosition);
+        }
     }
 
     void TorrentFilesView::onModelReset() {
@@ -365,5 +394,52 @@ namespace tremotesf {
         }
 
         contextMenu.exec(viewport()->mapToGlobal(pos));
+    }
+
+    bool TorrentFilesView::canSetFilePaths() const {
+        return mRpc->isConnected() && mRpc->serverSettings()->data().canSetFilePaths();
+    }
+
+    std::vector<QString> TorrentFilesView::selectedEntries(const QModelIndexList& sourceIndexes) const {
+        return topmostEntries(
+            sourceIndexes
+            | std::views::transform([](const QModelIndex& index) {
+                  return static_cast<const TorrentFilesModelEntry*>(index.internalPointer())->path();
+              })
+            | std::ranges::to<std::vector>()
+        );
+    }
+
+    void TorrentFilesView::moveEntries(std::vector<PathMove> moves) {
+        auto paths = applyPathMoves(mModel->currentFilePaths(), moves);
+        mPendingPathMoves = std::move(moves);
+        mModel->setFilePaths(std::move(paths));
+        if (mLocalFile) {
+            // Model of a torrent being added has either rebuilt the tree already, or renamed its entries in place
+            mPendingPathMoves.reset();
+        }
+    }
+
+    TextInputDialog::Check
+    TorrentFilesView::checkMoves(std::function<std::vector<PathMove>(const QString&)> movesForText) const {
+        return [filePaths = mModel->currentFilePaths(), movesForText = std::move(movesForText)](const QString& text) {
+            const auto newFilePaths = applyPathMoves(filePaths, movesForText(text));
+            if (const auto error = checkFilePaths(newFilePaths); error) {
+                return TextInputDialog::CheckResult{.acceptable = false, .message = filePathsErrorString(*error)};
+            }
+            const auto movedFiles =
+                std::ranges::count_if(std::views::zip(filePaths, newFilePaths), [](const auto& paths) {
+                    return std::get<0>(paths) != std::get<1>(paths);
+                });
+            if (movedFiles == 0) {
+                return TextInputDialog::CheckResult{.acceptable = false};
+            }
+            return TextInputDialog::CheckResult{
+                .acceptable = true,
+                //: %Ln is number of torrent's files whose paths change
+                .message =
+                    qApp->translate("tremotesf", "%Ln files will be moved", nullptr, static_cast<int>(movedFiles))
+            };
+        };
     }
 }

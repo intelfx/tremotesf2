@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <ranges>
 
+#include <QCoreApplication>
 #include <QSet>
 
 using namespace Qt::StringLiterals;
@@ -46,6 +47,10 @@ namespace tremotesf {
                | std::ranges::to<std::vector>();
     }
 
+    QString entryName(const QString& path) { return path.sliced(path.lastIndexOf(u'/') + 1); }
+
+    QString parentFolder(const QString& path) { return path.first(std::max(path.lastIndexOf(u'/'), qsizetype{0})); }
+
     std::optional<FilePathsError> checkFilePaths(std::span<const QString> filePaths) {
         QSet<QStringView> paths{};
         paths.reserve(static_cast<qsizetype>(filePaths.size()));
@@ -66,6 +71,21 @@ namespace tremotesf {
             }
         }
         return std::nullopt;
+    }
+
+    QString filePathsErrorString(const FilePathsError& error) {
+        switch (error.type) {
+        case FilePathsError::Type::InvalidPath:
+            //: %1 is a path of torrent's file
+            return qApp->translate("tremotesf", "Invalid path «%1»").arg(error.path);
+        case FilePathsError::Type::DuplicatePath:
+            //: %1 is a path of torrent's file
+            return qApp->translate("tremotesf", "More than one file would have path «%1»").arg(error.path);
+        case FilePathsError::Type::FileAndFolder:
+            //: %1 is a path of torrent's file
+            return qApp->translate("tremotesf", "«%1» would be both a file and a folder").arg(error.path);
+        }
+        return {};
     }
 
     std::vector<QString> topmostEntries(std::span<const QString> entryPaths) {

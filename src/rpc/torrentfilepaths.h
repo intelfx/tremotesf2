@@ -36,6 +36,11 @@ namespace tremotesf {
      */
     std::vector<QString> applyPathMoves(std::span<const QString> filePaths, std::span<const PathMove> moves);
 
+    // Name of a file or a folder
+    QString entryName(const QString& path);
+    // Folder that holds a file or a folder, or an empty string for the top level
+    QString parentFolder(const QString& path);
+
     struct FilePathsError {
         enum class Type {
             // Path is empty, or has an empty, "." or ".." component
@@ -53,6 +58,8 @@ namespace tremotesf {
 
     // Checks that paths of torrent's files are valid and don't clash, which servers require
     std::optional<FilePathsError> checkFilePaths(std::span<const QString> filePaths);
+
+    QString filePathsErrorString(const FilePathsError& error);
 
     /**
      * Paths of entries that are not inside other entries, e.g. "A" and "B/1" of "A", "A/1" and "B/1".

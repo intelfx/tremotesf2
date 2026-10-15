@@ -11,6 +11,11 @@
 #include <QSet>
 #include <QTreeView>
 
+#include "rpc/torrentfilepaths.h"
+#include "textinputdialog.h"
+
+class QMenu;
+
 namespace tremotesf {
     class BaseTorrentFilesModel;
     class LocalTorrentFilesModel;
@@ -40,6 +45,7 @@ namespace tremotesf {
             QSet<QString> expandedDirectories{};
             QSet<QString> selectedEntries{};
             int scrollPosition;
+            bool scrollToSelection{};
         };
 
         void init();
@@ -47,6 +53,13 @@ namespace tremotesf {
         void restoreTreeState(const TreeState& state);
         void onModelReset();
         void showContextMenu(QPoint pos);
+
+        bool canSetFilePaths() const;
+        // Paths of selected files and folders, without those that are inside selected folders
+        std::vector<QString> selectedEntries(const QModelIndexList& sourceIndexes) const;
+        void moveEntries(std::vector<PathMove> moves);
+        // Check for a dialog whose text makes moves of torrent's files and folders
+        TextInputDialog::Check checkMoves(std::function<std::vector<PathMove>(const QString&)> movesForText) const;
 
         std::optional<int> torrentId() const;
         QString entryPath(const QModelIndex& index) const;
@@ -58,6 +71,8 @@ namespace tremotesf {
         // Torrent whose files are in the tree, which may already be gone from the model when it's reset
         std::optional<int> mTreeTorrentId{};
         std::optional<TreeState> mSavedTreeState{};
+        // Moves that were sent to the model, to show where the entries went once the tree is rebuilt
+        std::optional<std::vector<PathMove>> mPendingPathMoves{};
     };
 }
 
