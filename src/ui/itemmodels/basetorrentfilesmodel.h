@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <memory>
+#include <span>
 #include <vector>
 #include <QAbstractItemModel>
 
@@ -45,6 +46,13 @@ namespace tremotesf {
         void updateFiles(
             std::span<const int> changedFiles, std::function<void(size_t, TorrentFilesModelEntry*)>&& updateFile
         );
+
+        /**
+         * Renames entries of the tree after new paths of torrent's files, if the tree keeps its shape with them
+         * @param paths New path of each file
+         * @return false if the paths don't fit the tree, e.g. because a file goes to another directory
+         */
+        bool renameEntries(std::span<const QString> paths);
 
         std::unique_ptr<TorrentFilesModelEntry> mRootEntry{};
         std::vector<TorrentFilesModelEntry*> mFiles{};

@@ -336,6 +336,59 @@ namespace tremotesf {
         );
     }
 
+    bool BaseTorrentFilesModel::renameEntries(std::span<const QString> paths) {
+        if (!mRootEntry || paths.size() != mFiles.size()) {
+            return false;
+        }
+        const auto* const hiddenRoot = isRootHidden() ? mRootEntry.get() : nullptr;
+        QHash<TorrentFilesModelEntry*, QString> newNames{};
+        for (const auto& [file, path] : std::views::zip(mFiles, paths)) {
+            const auto parts = path.split(u'/', Qt::SkipEmptyParts);
+            auto part = parts.crbegin();
+            for (auto* entry = file; entry && entry != hiddenRoot; entry = entry->parentDirectory()) {
+                if (part == parts.crend()) {
+                    return false;
+                }
+                if (const auto found = newNames.constFind(entry); found != newNames.constEnd()) {
+                    if (*found != *part) {
+                        return false;
+                    }
+                } else {
+                    newNames.insert(entry, *part);
+                }
+                ++part;
+            }
+            if (part != parts.crend()) {
+                return false;
+            }
+        }
+
+        // Entries with the same name would have to be merged
+        QSet<const TorrentFilesModelEntry*> checkedDirectories{};
+        for (const TorrentFilesModelEntry* entry : std::ranges::subrange(newNames.keyBegin(), newNames.keyEnd())) {
+            auto* const directory = entry->parentDirectory();
+            if (!directory || checkedDirectories.contains(directory)) {
+                continue;
+            }
+            checkedDirectories.insert(directory);
+            QSet<QString> names{};
+            for (auto& child : directory->children()) {
+                const QString name = newNames.value(&child, child.name());
+                if (names.contains(name)) {
+                    return false;
+                }
+                names.insert(name);
+            }
+        }
+
+        for (const auto& [entry, name] : newNames.asKeyValueRange()) {
+            if (entry->name() != name) {
+                fileRenamed(entry, name);
+            }
+        }
+        return true;
+    }
+
     void BaseTorrentFilesModel::fileRenamed(TorrentFilesModelEntry* entry, const QString& newName) {
         entry->setName(newName);
         emit dataChanged(createIndex(entry->row(), 0, entry), createIndex(entry->row(), columnCount() - 1, entry));

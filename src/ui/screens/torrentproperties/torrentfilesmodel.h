@@ -41,6 +41,7 @@ namespace tremotesf {
         void update(std::span<const int> changed);
         Coroutine<> createTree();
         void resetTree();
+        void onFilesRenamed();
         void updateTree(std::span<const int> changed);
 
         void setLoaded(bool loaded);

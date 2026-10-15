@@ -85,6 +85,7 @@ namespace tremotesf {
         if (mTorrent) {
             QObject::connect(mTorrent, &Torrent::filesUpdated, this, &TorrentFilesModel::update);
             QObject::connect(mTorrent, &Torrent::filesReset, this, &TorrentFilesModel::resetTree);
+            QObject::connect(mTorrent, &Torrent::filesRenamed, this, &TorrentFilesModel::onFilesRenamed);
             QObject::connect(mTorrent, &Torrent::fileRenamed, this, &TorrentFilesModel::fileRenamed);
             if (mTorrent->isFilesEnabled()) {
                 warning().log("{} already has enabled files, this shouldn't happen", *mTorrent);
@@ -186,6 +187,17 @@ namespace tremotesf {
             endResetModel();
             mFiles.clear();
             setLoaded(false);
+        }
+    }
+
+    void TorrentFilesModel::onFilesRenamed() {
+        if (!mLoaded) {
+            return;
+        }
+        const auto paths =
+            mTorrent->files() | std::views::transform(&TorrentFile::path) | std::ranges::to<std::vector>();
+        if (!renameEntries(paths)) {
+            resetTree();
         }
     }
 

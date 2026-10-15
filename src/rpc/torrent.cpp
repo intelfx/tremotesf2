@@ -797,15 +797,22 @@ namespace tremotesf {
         if (!fileStats.isEmpty()) {
             const QJsonArray fileJsons = torrentMap.value("files"_L1).toArray();
             if (!mFiles.empty() && !fileJsons.isEmpty()) {
-                // Files may have been moved around by renaming them
-                const bool pathsChanged =
-                    static_cast<size_t>(fileJsons.size()) != mFiles.size()
-                    || !std::ranges::equal(mFiles, fileJsons, {}, &TorrentFile::path, [](const QJsonValue& json) {
-                           return json.toObject().value("name"_L1).toString();
-                       });
-                if (pathsChanged) {
+                if (static_cast<size_t>(fileJsons.size()) != mFiles.size()) {
                     mFiles.clear();
                     emit filesReset();
+                } else {
+                    // Files may have been moved around by renaming them
+                    bool renamed = false;
+                    for (QJsonArray::size_type i = 0, max = fileJsons.size(); i < max; ++i) {
+                        auto path = fileJsons[i].toObject().value("name"_L1).toString();
+                        if (auto& file = mFiles[static_cast<size_t>(i)]; file.path != path) {
+                            file.path = std::move(path);
+                            renamed = true;
+                        }
+                    }
+                    if (renamed) {
+                        emit filesRenamed();
+                    }
                 }
             }
             if (mFiles.empty()) {

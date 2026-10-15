@@ -259,6 +259,7 @@ namespace tremotesf {
             mFiles = std::move(builder.files);
         }
 
+        using BaseTorrentFilesModel::renameEntries;
         using BaseTorrentFilesModel::updateFiles;
     };
 
@@ -817,6 +818,80 @@ namespace tremotesf {
             model.setFilesWanted({dir1}, false);
             QCOMPARE(file1.data(Qt::CheckStateRole).value<Qt::CheckState>(), Qt::CheckState::Unchecked);
             QCOMPARE(file2.data(Qt::CheckStateRole).value<Qt::CheckState>(), Qt::CheckState::Checked);
+        }
+
+        void checkRenameEntries() {
+            TestTorrentFilesModel model{};
+            model.populateEverythingNormal();
+            using Paths = std::vector<QString>;
+
+            QSignalSpy dataChanged(&model, &QAbstractItemModel::dataChanged);
+            QVERIFY(model.renameEntries(
+                Paths{
+                    u"top/subdir1/subsubddir/file1"_s,
+                    u"top/subdir1/subsubddir/file2"_s,
+                    u"top/subdir2/file2"_s,
+                    u"top/subdir2/file1"_s
+                }
+            ));
+            const auto top = indexForPath("top"_L1, model);
+            const auto file1 = indexForPath("top/subdir2/file2"_L1, model);
+            const auto file2 = indexForPath("top/subdir2/file1"_L1, model);
+            QCOMPARE(file1.siblingAtColumn(1).data().toString(), formatByteSize(3333333));
+            QCOMPARE(file2.siblingAtColumn(1).data().toString(), formatByteSize(111));
+            QCOMPARE(
+                actualDataChanged(dataChanged),
+                (std::set{
+                    ExpectedDataChanged::allColumnsAndRoles(top),
+                    ExpectedDataChanged::allColumnsAndRoles(file1),
+                    ExpectedDataChanged::allColumnsAndRoles(file2)
+                })
+            );
+            dataChanged.clear();
+
+            // A file goes to another directory
+            QVERIFY(!model.renameEntries(
+                Paths{
+                    u"top/subdir1/file1"_s,
+                    u"top/subdir1/subsubddir/file2"_s,
+                    u"top/subdir2/file2"_s,
+                    u"top/subdir2/file1"_s
+                }
+            ));
+            QVERIFY(!model.renameEntries(
+                Paths{
+                    u"top/subdir2/subsubddir/file1"_s,
+                    u"top/subdir1/subsubddir/file2"_s,
+                    u"top/subdir2/file2"_s,
+                    u"top/subdir2/file1"_s
+                }
+            ));
+            // Directories would be merged
+            QVERIFY(!model.renameEntries(
+                Paths{
+                    u"top/subdir2/subsubddir/file1"_s,
+                    u"top/subdir2/subsubddir/file2"_s,
+                    u"top/subdir2/file2"_s,
+                    u"top/subdir2/file1"_s
+                }
+            ));
+            QVERIFY(!model.renameEntries(Paths{u"top/subdir2/file2"_s}));
+            QVERIFY(dataChanged.isEmpty());
+            QVERIFY(indexForPath("top/subdir1/subsubddir/file1"_L1, model).isValid());
+        }
+
+        void checkRenameEntriesWithoutSingleTopLevelEntry() {
+            TestTorrentFilesModel model{};
+            model.populateWithoutSingleTopLevelEntry();
+            using Paths = std::vector<QString>;
+
+            QVERIFY(model.renameEntries(Paths{u"dir/file1"_s, u"file2"_s, u"dir/file3"_s}));
+            QCOMPARE(model.rowCount(), 2);
+            QCOMPARE(model.parent(indexForPath("dir/file1"_L1, model)), indexForPath("dir"_L1, model));
+
+            // A file and a directory with the same name
+            QVERIFY(!model.renameEntries(Paths{u"dir/file1"_s, u"dir"_s, u"dir/file3"_s}));
+            QVERIFY(indexForPath("file2"_L1, model).isValid());
         }
 
         void checkUpdateFiles() {
