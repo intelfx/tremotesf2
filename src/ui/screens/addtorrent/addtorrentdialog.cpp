@@ -395,6 +395,9 @@ namespace tremotesf {
         mFilesModel->setContentLayout(
             canSetFilePaths ? mAddTorrentParametersWidgets.contentLayout() : Settings::TorrentContentLayout::Original
         );
+        if (mRpc->isConnected() && !canSetFilePaths) {
+            mFilesModel->discardSetFilePaths();
+        }
     }
 
     void AddTorrentDialog::canAcceptUpdate() {

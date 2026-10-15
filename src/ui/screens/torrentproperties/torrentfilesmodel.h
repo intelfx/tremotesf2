@@ -34,6 +34,8 @@ namespace tremotesf {
         void renameFile(const QModelIndex& index, const QString& newName) override;
         void fileRenamed(const QString& path, const QString& newName);
 
+        void setFilePaths(std::vector<QString> paths) override;
+
         QString localFilePath(const QModelIndex& index) const;
         bool isWanted(const QModelIndex& index) const;
 

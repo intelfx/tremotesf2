@@ -39,6 +39,14 @@ namespace tremotesf {
         virtual void renameFile(const QModelIndex& index, const QString& newName) = 0;
         void fileRenamed(TorrentFilesModelEntry* entry, const QString& newName);
 
+        // Path of each file
+        std::vector<QString> currentFilePaths() const;
+        /**
+         * Gives torrent's files new paths
+         * @param paths New path of each file
+         */
+        virtual void setFilePaths(std::vector<QString> paths) = 0;
+
         Column fromColumnNumber(int column) const;
         int columnNumber(Column column) const;
 

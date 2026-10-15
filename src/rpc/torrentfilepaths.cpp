@@ -10,6 +10,25 @@
 using namespace Qt::StringLiterals;
 
 namespace tremotesf {
+    std::vector<std::optional<QString>>
+    changedFilePaths(std::span<const QString> filePaths, std::span<const QString> newFilePaths) {
+        std::vector<std::optional<QString>> paths{};
+        paths.reserve(newFilePaths.size());
+        bool anyChanged = false;
+        for (const auto& [path, newPath] : std::views::zip(filePaths, newFilePaths)) {
+            if (newPath == path) {
+                paths.emplace_back();
+            } else {
+                paths.emplace_back(newPath);
+                anyChanged = true;
+            }
+        }
+        if (!anyChanged) {
+            paths.clear();
+        }
+        return paths;
+    }
+
     std::optional<std::vector<QString>> removeTopLevelFolder(std::span<const QString> filePaths) {
         if (filePaths.empty()) {
             return std::nullopt;

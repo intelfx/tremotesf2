@@ -17,6 +17,15 @@ class TorrentFilePathsTest final : public QObject {
     Q_OBJECT
 
 private slots:
+    void checkChangedFilePaths() {
+        using ChangedPaths = std::vector<std::optional<QString>>;
+        QCOMPARE(
+            changedFilePaths(Paths{u"A/1"_s, u"A/2"_s, u"A/3"_s}, Paths{u"A/1"_s, u"B/2"_s, u"A/3"_s}),
+            (ChangedPaths{std::nullopt, u"B/2"_s, std::nullopt})
+        );
+        QCOMPARE(changedFilePaths(Paths{u"A/1"_s, u"A/2"_s}, Paths{u"A/1"_s, u"A/2"_s}), ChangedPaths{});
+    }
+
     void checkRemoveTopLevelFolder() {
         QCOMPARE(
             removeTopLevelFolder(Paths{u"Album/1.flac"_s, u"Album/CD2/2.flac"_s}),

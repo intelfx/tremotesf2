@@ -14,6 +14,7 @@
 #include "rpc/torrent.h"
 #include "rpc/serversettings.h"
 #include "rpc/rpc.h"
+#include "rpc/torrentfilepaths.h"
 #include "ui/itemmodels/torrentfilestreebuilder.h"
 
 using namespace Qt::StringLiterals;
@@ -128,6 +129,13 @@ namespace tremotesf {
             entry = &*found;
         }
         BaseTorrentFilesModel::fileRenamed(entry, newName);
+    }
+
+    void TorrentFilesModel::setFilePaths(std::vector<QString> paths) {
+        auto changedPaths = changedFilePaths(currentFilePaths(), paths);
+        if (!changedPaths.empty()) {
+            mRpc->renameTorrentFiles(mTorrent->data().id, std::move(changedPaths), std::nullopt);
+        }
     }
 
     QString TorrentFilesModel::localFilePath(const QModelIndex& index) const {

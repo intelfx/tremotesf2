@@ -8,6 +8,7 @@
 
 #include "addtorrenthelpers.h"
 #include "coroutines/threadpool.h"
+#include "rpc/torrentfilepaths.h"
 #include "ui/itemmodels/torrentfilesmodelentry.h"
 #include "ui/itemmodels/torrentfilestreebuilder.h"
 #include "torrentfileparser.h"
@@ -102,22 +103,7 @@ namespace tremotesf {
     const std::map<QString, QString>& LocalTorrentFilesModel::renamedFiles() const { return mRenamedFiles; }
 
     std::vector<std::optional<QString>> LocalTorrentFilesModel::filePaths() const {
-        std::vector<std::optional<QString>> paths{};
-        paths.reserve(mFiles.size());
-        bool anyChanged = false;
-        for (const auto& [file, torrentFilePath] : std::views::zip(mFiles, mTorrentFilePaths)) {
-            auto path = file->path();
-            if (path == torrentFilePath) {
-                paths.emplace_back();
-            } else {
-                paths.emplace_back(std::move(path));
-                anyChanged = true;
-            }
-        }
-        if (!anyChanged) {
-            paths.clear();
-        }
-        return paths;
+        return changedFilePaths(mTorrentFilePaths, currentFilePaths());
     }
 
     void LocalTorrentFilesModel::setContentLayout(Settings::TorrentContentLayout layout) {
@@ -130,9 +116,28 @@ namespace tremotesf {
         }
     }
 
+    void LocalTorrentFilesModel::setFilePaths(std::vector<QString> paths) {
+        applyFilePaths(paths);
+        mFilePathsSet = true;
+    }
+
+    void LocalTorrentFilesModel::discardSetFilePaths() {
+        if (mFilePathsSet) {
+            layOutFiles();
+        }
+    }
+
     void LocalTorrentFilesModel::layOutFiles() {
         const auto laidOutPaths = applyContentLayout(mTorrentFilePaths, mContentLayout);
-        const auto& paths = laidOutPaths ? *laidOutPaths : mTorrentFilePaths;
+        applyFilePaths(laidOutPaths ? *laidOutPaths : mTorrentFilePaths);
+        mFilePathsSet = false;
+    }
+
+    void LocalTorrentFilesModel::applyFilePaths(std::span<const QString> paths) {
+        mRenamedFiles.clear();
+        if (renameEntries(paths)) {
+            return;
+        }
 
         TorrentFilesTreeBuilder builder(paths.size());
         const bool hasSingleTopLevelEntry = TorrentFilesTreeBuilder::hasSingleTopLevelEntry(paths);
@@ -154,7 +159,6 @@ namespace tremotesf {
         beginResetModel();
         mRootEntry = std::move(builder.rootEntry);
         mFiles = std::move(builder.files);
-        mRenamedFiles.clear();
         endResetModel();
     }
 

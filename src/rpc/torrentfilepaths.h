@@ -22,6 +22,13 @@ namespace tremotesf {
     };
 
     /**
+     * New path of each file, or std::nullopt for a file whose path doesn't change, as servers take them
+     * @return Empty if no file's path changes
+     */
+    std::vector<std::optional<QString>>
+    changedFilePaths(std::span<const QString> filePaths, std::span<const QString> newFilePaths);
+
+    /**
      * Removes the top-level folder of torrent's files, e.g. turns "Album/1.flac" and "Album/2.flac"
      * into "1.flac" and "2.flac".
      * @return std::nullopt if the files are not in a single top-level folder

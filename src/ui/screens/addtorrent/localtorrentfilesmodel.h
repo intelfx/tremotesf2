@@ -7,6 +7,7 @@
 
 #include <map>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "settings.h"
@@ -45,11 +46,16 @@ namespace tremotesf {
         void setContentLayout(Settings::TorrentContentLayout layout);
 
         void renameFile(const QModelIndex& index, const QString& newName) override;
+        void setFilePaths(std::vector<QString> paths) override;
+        // Lays out the files anew if their paths were set with setFilePaths(), which only some servers can take
+        void discardSetFilePaths();
 
     private:
         void layOutFiles();
+        void applyFilePaths(std::span<const QString> paths);
 
         bool mLoaded{};
+        bool mFilePathsSet{};
         Settings::TorrentContentLayout mContentLayout{Settings::TorrentContentLayout::Original};
 
         std::map<QString, QString> mRenamedFiles{};

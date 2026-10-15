@@ -113,6 +113,7 @@ namespace tremotesf {
               ) {}
 
         void renameFile(const QModelIndex&, const QString&) override {}
+        void setFilePaths(std::vector<QString>) override {}
 
         struct File {
             QString path;

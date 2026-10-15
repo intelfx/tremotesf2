@@ -394,6 +394,10 @@ namespace tremotesf {
         emit dataChanged(createIndex(entry->row(), 0, entry), createIndex(entry->row(), columnCount() - 1, entry));
     }
 
+    std::vector<QString> BaseTorrentFilesModel::currentFilePaths() const {
+        return mFiles | std::views::transform(&TorrentFilesModelEntry::path) | std::ranges::to<std::vector>();
+    }
+
     int BaseTorrentFilesModel::columnNumber(Column column) const {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         return indexOfCasted<int>(mColumns, column).value();
