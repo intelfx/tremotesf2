@@ -37,10 +37,12 @@ namespace tremotesf {
     /**
      * Paths that torrent's files get with the content layout
      * @param filePaths Paths of torrent's files in the torrent file
+     * @param torrentName Name of the folder that holds several top-level files and folders when one is created
      * @return std::nullopt if the content layout doesn't change the paths
      */
-    std::optional<std::vector<QString>>
-    applyContentLayout(std::span<const QString> filePaths, Settings::TorrentContentLayout layout);
+    std::optional<std::vector<QString>> applyContentLayout(
+        std::span<const QString> filePaths, Settings::TorrentContentLayout layout, const QString& torrentName
+    );
 
     // Takes paths of torrent's files out of the torrent file
     std::vector<QString> takeFilePaths(TorrentMetainfoFile& torrentFile);

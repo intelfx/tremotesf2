@@ -172,12 +172,21 @@ namespace tremotesf {
                | std::ranges::to<std::vector>();
     }
 
-    std::optional<std::vector<QString>> addTopLevelFolder(std::span<const QString> filePaths) {
-        if (filePaths.size() != 1 || filePaths.front().contains(u'/')) {
+    std::optional<std::vector<QString>>
+    addTopLevelFolder(std::span<const QString> filePaths, const QString& folderName) {
+        if (filePaths.empty() || removeTopLevelFolder(filePaths)) {
             return std::nullopt;
         }
-        const auto& fileName = filePaths.front();
-        return std::vector{fileNameWithoutExtension(fileName) + u'/' + fileName};
+        if (filePaths.size() == 1) {
+            const auto& fileName = filePaths.front();
+            return std::vector{fileNameWithoutExtension(fileName) + u'/' + fileName};
+        }
+        if (folderName.isEmpty()) {
+            return std::nullopt;
+        }
+        return filePaths
+               | std::views::transform([&](const QString& path) { return folderName + u'/' + path; })
+               | std::ranges::to<std::vector>();
     }
 
     std::vector<PathMove> flattenFolders(std::span<const QString> filePaths, std::span<const QString> folders) {

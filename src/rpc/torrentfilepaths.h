@@ -99,11 +99,14 @@ namespace tremotesf {
     std::optional<std::vector<QString>> removeTopLevelFolder(std::span<const QString> filePaths);
 
     /**
-     * Puts torrent's single file into a top-level folder named after it without its extension,
-     * e.g. turns "Movie.mkv" into "Movie/Movie.mkv".
-     * @return std::nullopt if the torrent doesn't consist of a single file that is not in any folder
+     * Puts torrent's files into a top-level folder. A single file goes into a folder named after it without its
+     * extension, e.g. "Movie.mkv" becomes "Movie/Movie.mkv". Several top-level files and folders go into a folder
+     * with the given name, e.g. "1.flac" and "CD2/2.flac" become "Album/1.flac" and "Album/CD2/2.flac".
+     * @param folderName Name of the folder for several top-level files and folders
+     * @return std::nullopt if the files are already in a single top-level folder
      */
-    std::optional<std::vector<QString>> addTopLevelFolder(std::span<const QString> filePaths);
+    std::optional<std::vector<QString>>
+    addTopLevelFolder(std::span<const QString> filePaths, const QString& folderName);
 
     /**
      * Dissolves folders: everything that is in them goes into their parent folders, e.g. "A/B/1" and "A/B/C/2"

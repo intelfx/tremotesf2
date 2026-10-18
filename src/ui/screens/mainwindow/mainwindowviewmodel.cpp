@@ -262,7 +262,11 @@ namespace tremotesf {
                         std::vector<std::optional<QString>> laidOutPaths{};
                         try {
                             auto torrentFile = tremotesf::parseTorrentFile(path);
-                            if (auto paths = applyContentLayout(takeFilePaths(torrentFile), layout)) {
+                            if (auto paths = applyContentLayout(
+                                    takeFilePaths(torrentFile),
+                                    layout,
+                                    torrentFile.rootFileName
+                                )) {
                                 laidOutPaths.assign(
                                     std::make_move_iterator(paths->begin()),
                                     std::make_move_iterator(paths->end())

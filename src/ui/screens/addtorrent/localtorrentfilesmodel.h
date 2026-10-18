@@ -34,7 +34,7 @@ namespace tremotesf {
          */
         Coroutine<> load(TorrentMetainfoFile torrentFile);
         // Loads files of an added torrent
-        Coroutine<> load(std::vector<TorrentFile> files);
+        Coroutine<> load(std::vector<TorrentFile> files, QString torrentName);
 
         bool isLoaded() const;
 
@@ -73,6 +73,8 @@ namespace tremotesf {
 
         std::map<QString, QString> mRenamedFiles{};
         std::vector<QString> mInitialFilePaths{};
+        // Name of the folder that the files go into when several of them are at the top level
+        QString mTorrentName{};
         std::set<int> mHighlightedFiles{};
 
     signals:

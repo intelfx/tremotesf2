@@ -62,13 +62,14 @@ namespace tremotesf {
                | std::ranges::to<std::vector>();
     }
 
-    std::optional<std::vector<QString>>
-    applyContentLayout(std::span<const QString> filePaths, Settings::TorrentContentLayout layout) {
+    std::optional<std::vector<QString>> applyContentLayout(
+        std::span<const QString> filePaths, Settings::TorrentContentLayout layout, const QString& torrentName
+    ) {
         switch (layout) {
         case Settings::TorrentContentLayout::Original:
             return std::nullopt;
         case Settings::TorrentContentLayout::CreateSubfolder:
-            return addTopLevelFolder(filePaths);
+            return addTopLevelFolder(filePaths, torrentName);
         case Settings::TorrentContentLayout::NoSubfolder:
             return removeTopLevelFolder(filePaths);
         }

@@ -125,12 +125,21 @@ private slots:
     }
 
     void checkAddTopLevelFolder() {
-        QCOMPARE(addTopLevelFolder(Paths{u"Movie.mkv"_s}), (Paths{u"Movie/Movie.mkv"_s}));
-        QCOMPARE(addTopLevelFolder(Paths{u"archive.tar.gz"_s}), (Paths{u"archive.tar/archive.tar.gz"_s}));
-        QCOMPARE(addTopLevelFolder(Paths{u"README"_s}), (Paths{u"README/README"_s}));
-        QCOMPARE(addTopLevelFolder(Paths{u".hidden"_s}), (Paths{u".hidden/.hidden"_s}));
-        QCOMPARE(addTopLevelFolder(Paths{u"Movie/Movie.mkv"_s}), std::nullopt);
-        QCOMPARE(addTopLevelFolder(Paths{u"1.flac"_s, u"2.flac"_s}), std::nullopt);
+        QCOMPARE(addTopLevelFolder(Paths{u"Movie.mkv"_s}, u"Torrent"_s), (Paths{u"Movie/Movie.mkv"_s}));
+        QCOMPARE(
+            addTopLevelFolder(Paths{u"archive.tar.gz"_s}, u"Torrent"_s),
+            (Paths{u"archive.tar/archive.tar.gz"_s})
+        );
+        QCOMPARE(addTopLevelFolder(Paths{u"README"_s}, u"Torrent"_s), (Paths{u"README/README"_s}));
+        QCOMPARE(addTopLevelFolder(Paths{u".hidden"_s}, u"Torrent"_s), (Paths{u".hidden/.hidden"_s}));
+        QCOMPARE(addTopLevelFolder(Paths{u"Movie/Movie.mkv"_s}, u"Torrent"_s), std::nullopt);
+        QCOMPARE(addTopLevelFolder(Paths{u"Album/1.flac"_s, u"Album/2.flac"_s}, u"Torrent"_s), std::nullopt);
+        QCOMPARE(
+            addTopLevelFolder(Paths{u"1.flac"_s, u"CD2/2.flac"_s}, u"Album"_s),
+            (Paths{u"Album/1.flac"_s, u"Album/CD2/2.flac"_s})
+        );
+        QCOMPARE(addTopLevelFolder(Paths{u"1.flac"_s, u"2.flac"_s}, QString{}), std::nullopt);
+        QCOMPARE(addTopLevelFolder(Paths{}, u"Torrent"_s), std::nullopt);
     }
 
     void checkFlattenFolders() {

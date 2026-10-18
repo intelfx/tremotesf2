@@ -65,6 +65,7 @@ namespace tremotesf {
 
     Coroutine<> LocalTorrentFilesModel::load(TorrentMetainfoFile torrentFile) {
         beginResetModel();
+        mTorrentName = torrentFile.rootFileName;
         try {
             finishLoading(co_await runOnThreadPool(&createTree, std::move(torrentFile)));
         } catch (const bencode::Error&) {
@@ -73,8 +74,9 @@ namespace tremotesf {
         }
     }
 
-    Coroutine<> LocalTorrentFilesModel::load(std::vector<TorrentFile> files) {
+    Coroutine<> LocalTorrentFilesModel::load(std::vector<TorrentFile> files, QString torrentName) {
         beginResetModel();
+        mTorrentName = std::move(torrentName);
         finishLoading(co_await runOnThreadPool([files = std::move(files)] { return createTorrentFilesTree(files); }));
     }
 
@@ -162,7 +164,7 @@ namespace tremotesf {
 
     void LocalTorrentFilesModel::layOutFiles() {
         setHighlightedFiles({});
-        const auto laidOutPaths = applyContentLayout(mInitialFilePaths, mContentLayout);
+        const auto laidOutPaths = applyContentLayout(mInitialFilePaths, mContentLayout, mTorrentName);
         applyFilePaths(laidOutPaths ? *laidOutPaths : mInitialFilePaths);
         mFilePathsSet = false;
     }
